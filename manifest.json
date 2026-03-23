@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "LeetCode Code Saver",
+  "description": "Save LeetCode code and notes to a GitHub repository on button click.",
+  "version": "1.0",
+  "permissions": [
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://leetcode.com/*"
+  ],
+  "action": {
+    "default_title": "LeetCode Code Saver Options",
+    "default_popup": "options.html"
+  },
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://leetcode.com/problems/*"],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

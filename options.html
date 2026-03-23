@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LeetCode Code Saver Options</title>
+    <style>
+        body {
+            width: 300px;
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success { background-color: #dff0d8; color: #3c763d; }
+        .error { background-color: #f2dede; color: #a94442; }
+    </style>
+</head>
+<body>
+    <h2>LeetCode Code Saver Settings</h2>
+    
+    <label for="githubToken">GitHub Personal Access Token:</label>
+    <input type="password" id="githubToken" placeholder="Enter your GitHub token">
+    
+    <label for="githubRepo">GitHub Repository (format: owner/repo):</label>
+    <input type="text" id="githubRepo" placeholder="e.g., username/leetcode-solutions">
+    
+    <label for="githubBranch">Branch (default: main):</label>
+    <input type="text" id="githubBranch" value="main">
+    
+    <label for="githubFolder">Folder in repo (default: leetcode):</label>
+    <input type="text" id="githubFolder" value="leetcode">
+    
+    <button id="save">Save Settings</button>
+    <div id="status"></div>
+
+    <script src="options.js"></script>
+</body>
+</html>

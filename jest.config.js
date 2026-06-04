@@ -6,7 +6,8 @@ module.exports = {
   ],
   collectCoverageFrom: [
     'contentScript.js',
-    'options.js'
+    'options.js',
+    'background.js'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],

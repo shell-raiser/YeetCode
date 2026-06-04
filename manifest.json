@@ -8,7 +8,8 @@
     "scripting"
   ],
   "host_permissions": [
-    "*://leetcode.com/*"
+    "*://leetcode.com/*",
+    "https://api.github.com/*"
   ],
   "action": {
     "default_title": "LeetCode Code Saver Options",
@@ -23,6 +24,12 @@
       "matches": ["*://leetcode.com/problems/*"],
       "js": ["contentScript.js"],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["pageBridge.js"],
+      "matches": ["*://leetcode.com/*"]
     }
   ]
 }

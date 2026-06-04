@@ -1,60 +1,293 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
     <title>LeetCode Code Saver Options</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            width: 300px;
-            font-family: Arial, sans-serif;
-            margin: 20px;
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --primary: #10b981;
+            --primary-hover: #059669;
+            --accent-blue: #3b82f6;
+            --accent-blue-hover: #2563eb;
+            --danger: #ef4444;
+            --danger-bg: rgba(239, 68, 68, 0.1);
+            --danger-border: rgba(239, 68, 68, 0.2);
+            --success-bg: rgba(16, 185, 129, 0.1);
+            --success-border: rgba(16, 185, 129, 0.2);
+            --input-bg: rgba(15, 23, 42, 0.6);
+            --input-focus-glow: rgba(59, 130, 246, 0.35);
         }
-        label {
-            display: block;
-            margin-top: 10px;
-        }
-        input[type="text"], input[type="password"] {
-            width: 100%;
-            padding: 8px;
-            margin-top: 5px;
+
+        * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
-        button {
-            margin-top: 20px;
-            padding: 10px 15px;
-            background-color: #4CAF50;
+
+        body {
+            width: 420px;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            min-height: 520px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 24px;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
             color: white;
-            border: none;
+            font-size: 18px;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 600;
+            background: linear-gradient(to right, #f8fafc, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            position: relative;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 13.5px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        input[type="password"] {
+            padding-right: 40px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px var(--input-focus-glow);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 12px;
             cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 600;
+            user-select: none;
+            transition: color 0.2s;
         }
-        button:hover {
-            background-color: #45a049;
+
+        .toggle-password:hover {
+            color: var(--text-primary);
         }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        button {
+            flex: 1;
+            padding: 11px 16px;
+            border-radius: 8px;
+            border: none;
+            font-family: inherit;
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        #test {
+            background-color: transparent;
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        #test:hover:not(:disabled) {
+            background-color: rgba(59, 130, 246, 0.08);
+            border-color: var(--accent-blue-hover);
+        }
+
+        #save {
+            background-color: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        }
+
+        #save:hover:not(:disabled) {
+            background-color: var(--primary-hover);
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .status {
-            margin-top: 10px;
-            padding: 10px;
-            border-radius: 4px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            line-height: 1.4;
+            display: none;
+            animation: fadeIn 0.3s ease;
         }
-        .success { background-color: #dff0d8; color: #3c763d; }
-        .error { background-color: #f2dede; color: #a94442; }
+
+        .status.success {
+            display: block;
+            background-color: var(--success-bg);
+            border: 1px solid var(--success-border);
+            color: #34d399;
+        }
+
+        .status.error {
+            display: block;
+            background-color: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            color: #f87171;
+        }
+
+        .status.loading {
+            display: block;
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .footer-note {
+            margin-top: 16px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-align: center;
+            line-height: 1.4;
+        }
+
+        .footer-note a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        .footer-note a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
-    <h2>LeetCode Code Saver Settings</h2>
+    <div class="header">
+        <div class="logo-icon">Y</div>
+        <h2>YeetCode Saver Settings</h2>
+    </div>
     
-    <label for="githubToken">GitHub Personal Access Token:</label>
-    <input type="password" id="githubToken" placeholder="Enter your GitHub token">
-    
-    <label for="githubRepo">GitHub Repository (format: owner/repo):</label>
-    <input type="text" id="githubRepo" placeholder="e.g., username/leetcode-solutions">
-    
-    <label for="githubBranch">Branch (default: main):</label>
-    <input type="text" id="githubBranch" value="main">
-    
-    <label for="githubFolder">Folder in repo (default: leetcode):</label>
-    <input type="text" id="githubFolder" value="leetcode">
-    
-    <button id="save">Save Settings</button>
-    <div id="status"></div>
+    <div class="card">
+        <div class="form-group">
+            <label for="githubToken">GitHub Token (needs 'repo' scope)</label>
+            <div class="input-wrapper">
+                <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxx">
+                <span class="toggle-password" id="toggleToken">SHOW</span>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="githubRepo">GitHub Repository (owner/repo)</label>
+            <input type="text" id="githubRepo" placeholder="e.g., kss/leetcode-solutions">
+        </div>
+        
+        <div class="form-group">
+            <label for="githubBranch">Branch name</label>
+            <input type="text" id="githubBranch" value="main">
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 8px; margin: 4px 0;">
+            <input type="checkbox" id="saveNotesAndTimer" style="width: auto; margin: 0; cursor: pointer;" checked>
+            <label for="saveNotesAndTimer" style="text-transform: none; font-size: 13px; font-weight: 500; color: var(--text-primary); cursor: pointer; user-select: none;">Save Notes & Timer in separate file</label>
+        </div>
+        
+        <div class="button-group">
+            <button id="test">Test Connection</button>
+            <button id="save">Save Settings</button>
+        </div>
+        
+        <div id="status" class="status"></div>
+    </div>
+
+    <p class="footer-note">
+        GitHub Personal Access Tokens can be created in <br>
+        <a href="https://github.com/settings/tokens" target="_blank">GitHub Developer Settings</a>.
+    </p>
 
     <script src="options.js"></script>
 </body>

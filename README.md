@@ -6,9 +6,9 @@ A browser extension that allows you to save your LeetCode code and notes directl
 
 - **One-click saving**: Save your current code and notes to GitHub with a custom button next to LeetCode's submit button
 - **GitHub Integration**: Securely store your solutions using your GitHub Personal Access Token
-- **Automatic Filename Generation**: Files are named based on problem title and timestamp
-- **Configurable Repository**: Set your GitHub repository, branch, and folder in extension options
-- **Multiple File Support**: Each save creates a new file (or updates if same timestamp) to keep history
+- **Stable Per-Problem Files**: Each problem is saved in a root-level folder named after the question
+- **Configurable Repository**: Set your GitHub repository and branch in extension options
+- **Git History Friendly**: Repeated saves update the same code and notes files, with submission time in the commit message
 - **Status Feedback**: Visual feedback on save status (success/error messages)
 
 ## Installation
@@ -31,12 +31,11 @@ A browser extension that allows you to save your LeetCode code and notes directl
    - **GitHub Personal Access Token**: Generate one at https://github.com/settings/tokens (needs `repo` scope)
    - **GitHub Repository**: In format `owner/repo` (e.g., `username/leetcode-solutions`)
    - **Branch**: Default is `main` (change if you use a different branch)
-   - **Folder**: Default is `leetcode` (folder within repo where files will be saved)
 4. Click "Save Settings"
 5. On the LeetCode problem page, you'll see a new "Save to GitHub" button next to the submit button
 6. Write your code/notes in the editor
 7. Click "Save to GitHub" to save your current work
-8. Check your GitHub repository for the saved file
+8. Check your GitHub repository for files like `two-sum/two-sum.py` and `two-sum/two-sum-notes.md`
 
 ## Architecture
 
@@ -61,8 +60,8 @@ The extension consists of four main components:
    - Code extraction from LeetCode's editor (Monaco editor or fallback methods)
    - Problem information gathering (title from URL/page, timestamp)
    - Retrieval of GitHub settings from Chrome storage
-   - GitHub API call to create/update a file in your specified repository
-   - File naming: `{problem-title}-{timestamp}.txt` (e.g., `two-sum-2026-03-20T10-30-00-123Z.txt`)
+   - GitHub API calls to create/update the code and notes files in your specified repository
+   - File naming: `{problem-title}/{problem-title}.{ext}` and `{problem-title}/{problem-title}-notes.md`
    - Commit message: `Save LeetCode solution: {problem-title} ({timestamp})`
 5. Success/error messages are displayed temporarily near the button
 
@@ -89,19 +88,20 @@ leetcode-code-saver/
 ├── options.html
 ├── options.js
 ├── contentScript.js
+├── pageBridge.js
 ├── background.js
 └── README.md
 ```
 
 ## Future Enhancements
 
-- [ ] Support for saving notes separately from code
+- [x] Support for saving notes separately from code
 - [ ] Option to include problem description in saved files
 - [ ] Ability to save multiple files per problem (different approaches)
 - [ ] Integration with GitHub Gists as an alternative
 - [ ] Support for other code editors (if LeetCode changes theirs)
-- [ ] Auto-save functionality
-- [ ] Language detection and appropriate file extensions
+- [x] Auto-save functionality
+- [x] Language detection and appropriate file extensions
 - [ ] Option to create pull requests instead of direct commits
 - [ ] Support for Firefox and other browsers
 

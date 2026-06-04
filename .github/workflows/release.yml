@@ -1,0 +1,48 @@
+name: Release Extension
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 'current'
+          cache: 'npm'
+      - run: npm ci
+      - name: Create extension zip
+        run: |
+          zip -r YeetCodeExtension.zip . -x "node_modules/*" ".git/*" "*.git*" "README.md" "coverage/*" ".github/*" "jest.config.js" "package-lock.json" "npm-shrinkwrap.json" "yarn.lock" "tests/*" "*.test.js" "*.md" "LICENSE" ".gitignore" ".npmrc"
+      - name: Install GH CLI
+        run: |
+          sudo apt-get update && sudo apt-get install -y gh
+      - name: Delete all existing releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          # List all releases and delete them
+          releases=$(gh release list --repo $REPO --limit 100 --json tagName --jq '.[].tagName')
+          if [ -n "$releases" ]; then
+            echo "$releases" | while read tag; do
+              echo "Deleting release $tag"
+              gh release delete $tag --repo $REPO --yes || true
+            done
+          fi
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: latest
+          release_name: Latest Extension
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: YeetCodeExtension.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

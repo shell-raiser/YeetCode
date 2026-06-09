@@ -7,6 +7,8 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v3
       - name: Setup Node
@@ -39,7 +41,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: latest
-          release_name: Latest Extension
+          name: Latest Extension
           draft: false
           prerelease: false
           generate_release_notes: true

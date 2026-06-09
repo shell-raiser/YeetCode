@@ -69,7 +69,7 @@ The extension consists of four main components:
 
 To use this extension, you need to generate a GitHub Personal Access Token:
 
-1. Go to https://github.com/settings/tokens
+1. Go to https://github.com/settings/personal-access-tokens
 2. Click "Generate new token" → "Generate new token (classic)"
 3. Give it a descriptive name (e.g., "LeetCode Code Saver")
 4. Set expiration (recommended: no expiration or 6 months)

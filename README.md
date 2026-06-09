@@ -1,15 +1,15 @@
+<img src="catcodeLogo.svg"></img>
 # YeetCode
 
-A browser extension that allows you to save your LeetCode code and notes directly to a GitHub repository with a single click.
+A browser extension that allows you to save your LeetCode code and notes directly to a GitHub repository.
 
 ## Features
 
-- **One-click saving**: Save your current code and notes to GitHub with a custom button next to LeetCode's submit button
-- **GitHub Integration**: Securely store your solutions using your GitHub Personal Access Token
+- **One-click saving & Auto-save**: Save your current code and notes to repo with a custom button next to LeetCode's submit button. Code is also automatically pushed when you submit on leetcode.
+- **GitHub Integration**: Securely store your solutions using your GitHub Personal Access Token, which you can set to only grant permission to the specific repo. (Unlike every other extension that asks complete Github access)
 - **Stable Per-Problem Files**: Each problem is saved in a root-level folder named after the question
 - **Configurable Repository**: Set your GitHub repository and branch in extension options
 - **Git History Friendly**: Repeated saves update the same code and notes files, with submission time in the commit message
-- **Status Feedback**: Visual feedback on save status (success/error messages)
 
 ## Installation
 

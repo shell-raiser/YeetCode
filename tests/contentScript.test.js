@@ -120,7 +120,13 @@ describe('YeetCode Extension', () => {
     test('should attach the manual save button during startup scan', () => {
       document.body.innerHTML = `
         <div id="editor-container"></div>
-        <button data-testid="judge-button">Submit</button>
+        <div class="flex">
+          <div class="group flex items-center">
+            <div data-state="closed">
+              <button data-testid="judge-button">Submit</button>
+            </div>
+          </div>
+        </div>
         <textarea>console.log('test');</textarea>
       `;
 

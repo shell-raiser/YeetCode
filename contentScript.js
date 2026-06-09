@@ -182,6 +182,7 @@ function createCustomButton(submitButton) {
     customButton.style.display = 'inline-flex';
     customButton.style.alignItems = 'center';
     customButton.style.justifyContent = 'center';
+    customButton.style.alignSelf = 'center';
     
     // Add hover effect
     customButton.addEventListener('mouseover', function() {
@@ -192,8 +193,10 @@ function createCustomButton(submitButton) {
         customButton.style.backgroundColor = '#d3d3d3';
     });
     
-    // Insert the button after the submit button
-    submitButton.parentNode.insertBefore(customButton, submitButton.nextSibling);
+    // Insert the button inside the outer flex container, after the submit button's wrapper div
+    const submitWrapper = submitButton.parentNode.parentNode;
+    const flexContainer = submitWrapper.parentNode;
+    flexContainer.insertBefore(customButton, submitWrapper.nextSibling);
     
     // Add click event listener
     customButton.addEventListener('click', async function() {

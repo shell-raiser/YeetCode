@@ -39,7 +39,7 @@ describe('Options Page', () => {
     // Set up DOM including the saveNotesAndTimer checkbox
     document.body.innerHTML = `
       <input type="password" id="githubToken">
-      <span id="toggleToken">SHOW</span>
+      <input type="checkbox" id="toggleToken">
       <input type="text" id="githubRepo">
       <input type="text" id="githubBranch" value="main">
       <input type="text" id="githubFolder">
@@ -86,16 +86,16 @@ describe('Options Page', () => {
   // ─────────────────────────────────────────────────────
   test('should toggle token visibility', () => {
     const tokenInput = document.getElementById('githubToken');
-    const toggleSpan = document.getElementById('toggleToken');
+    const toggleCheckbox = document.getElementById('toggleToken');
 
     expect(tokenInput.type).toBe('password');
-    toggleSpan.dispatchEvent(new Event('click'));
+    toggleCheckbox.checked = true;
+    toggleCheckbox.dispatchEvent(new Event('change'));
     expect(tokenInput.type).toBe('text');
-    expect(toggleSpan.textContent).toBe('HIDE');
 
-    toggleSpan.dispatchEvent(new Event('click'));
+    toggleCheckbox.checked = false;
+    toggleCheckbox.dispatchEvent(new Event('change'));
     expect(tokenInput.type).toBe('password');
-    expect(toggleSpan.textContent).toBe('SHOW');
   });
 
   // ─────────────────────────────────────────────────────

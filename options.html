@@ -64,7 +64,7 @@
         h2 {
             font-size: 18px;
             font-weight: 600;
-            background: linear-gradient(to right, #f8fafc, #cbd5e1);
+            background: white;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -114,10 +114,6 @@
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        input[type="password"] {
-            padding-right: 40px;
-        }
-
         input:focus {
             outline: none;
             border-color: var(--accent-blue);
@@ -125,18 +121,24 @@
             background: rgba(15, 23, 42, 0.8);
         }
 
-        .toggle-password {
-            position: absolute;
-            right: 12px;
+        .token-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 4px;
             cursor: pointer;
-            color: var(--text-secondary);
-            font-size: 11px;
-            font-weight: 600;
             user-select: none;
-            transition: color 0.2s;
+            font-size: 12px;
+            color: var(--text-secondary);
         }
 
-        .toggle-password:hover {
+        .token-toggle input {
+            width: auto;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .token-toggle:hover {
             color: var(--text-primary);
         }
 
@@ -253,8 +255,10 @@
             <label for="githubToken">GitHub Token (needs 'repo' scope)</label>
             <div class="input-wrapper">
                 <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxx">
-                <span class="toggle-password" id="toggleToken">SHOW</span>
             </div>
+            <label class="token-toggle">
+                <input type="checkbox" id="toggleToken"> Show token
+            </label>
         </div>
         
         <div class="form-group">

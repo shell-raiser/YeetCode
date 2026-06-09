@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const githubBranchInput = document.getElementById('githubBranch');
     const githubFolderInput = document.getElementById('githubFolder');
     const saveNotesAndTimerInput = document.getElementById('saveNotesAndTimer');
-    const toggleTokenSpan = document.getElementById('toggleToken');
+    const toggleToken = document.getElementById('toggleToken');
     
     const testButton = document.getElementById('test');
     const saveButton = document.getElementById('save');
@@ -26,14 +26,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Toggle token password visibility
-    toggleTokenSpan.addEventListener('click', function() {
-        if (githubTokenInput.type === 'password') {
-            githubTokenInput.type = 'text';
-            toggleTokenSpan.textContent = 'HIDE';
-        } else {
-            githubTokenInput.type = 'password';
-            toggleTokenSpan.textContent = 'SHOW';
-        }
+    toggleToken.addEventListener('change', function() {
+        githubTokenInput.type = this.checked ? 'text' : 'password';
     });
 
     // Test GitHub API connection

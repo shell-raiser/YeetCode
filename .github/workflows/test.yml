@@ -2,9 +2,9 @@ name: Test Extension
 
 on:
   push:
-    branches: [ main ]
+    # run on all branches except main
+    branches-ignore: [ main ]
   pull_request:
-    branches: [ main ]
 
 jobs:
   test:

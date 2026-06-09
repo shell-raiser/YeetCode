@@ -7,7 +7,7 @@ A browser extension that allows you to save your LeetCode code and notes directl
 
 - **One-click saving & Auto-save**: Save your current code and notes to repo with a custom button next to LeetCode's submit button. Code is also automatically pushed when you submit on leetcode.
 - **GitHub Integration**: Securely store your solutions using your GitHub Personal Access Token, which you can set to only grant permission to the specific repo. (Unlike every other extension that asks complete Github access)
-- **Stable Per-Problem Files**: Each problem is saved in a root-level folder named after the question
+- **Stable Per-Problem Files**: Each problem is saved in a seperate folder named after the question. You can set a parent folder if you want.
 - **Configurable Repository**: Set your GitHub repository and branch in extension options
 - **Git History Friendly**: Repeated saves update the same code and notes files, with submission time in the commit message
 
@@ -32,7 +32,7 @@ A browser extension that allows you to save your LeetCode code and notes directl
    - **GitHub Repository**: In format `owner/repo` (e.g., `username/leetcode-solutions`)
    - **Branch**: Default is `main` (change if you use a different branch)
 4. Click "Save Settings"
-5. On the LeetCode problem page, you'll see a new "Save to GitHub" button next to the submit button
+5. On the LeetCode problem page, you'll see a new "Yeet" button next to the submit button
 6. Write your code/notes in the editor
 7. Click "Save to GitHub" to save your current work
 8. Check your GitHub repository for files like `two-sum/two-sum.py` and `two-sum/two-sum-notes.md`
@@ -50,20 +50,6 @@ The extension consists of four main components:
    - Fetches saved GitHub settings
    - Saves code to GitHub via GitHub API
 4. **background.js** - Service worker (currently minimal, can be expanded for future features)
-
-### How It Works
-
-1. When you navigate to a LeetCode problem page, the content script waits for the page to load
-2. It observes the DOM for the submit button and editor to be available
-3. Once found, it injects a "Save to GitHub" button next to the submit button
-4. Clicking the button triggers:
-   - Code extraction from LeetCode's editor (Monaco editor or fallback methods)
-   - Problem information gathering (title from URL/page, timestamp)
-   - Retrieval of GitHub settings from Chrome storage
-   - GitHub API calls to create/update the code and notes files in your specified repository
-   - File naming: `{problem-title}/{problem-title}.{ext}` and `{problem-title}/{problem-title}-notes.md`
-   - Commit message: `Save LeetCode solution: {problem-title} ({timestamp})`
-5. Success/error messages are displayed temporarily near the button
 
 ## GitHub Personal Access Token
 
@@ -92,18 +78,6 @@ leetcode-code-saver/
 ├── background.js
 └── README.md
 ```
-
-## Future Enhancements
-
-- [x] Support for saving notes separately from code
-- [ ] Option to include problem description in saved files
-- [ ] Ability to save multiple files per problem (different approaches)
-- [ ] Integration with GitHub Gists as an alternative
-- [ ] Support for other code editors (if LeetCode changes theirs)
-- [x] Auto-save functionality
-- [x] Language detection and appropriate file extensions
-- [ ] Option to create pull requests instead of direct commits
-- [ ] Support for Firefox and other browsers
 
 ## Troubleshooting
 

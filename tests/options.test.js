@@ -11,6 +11,7 @@ global.chrome = {
           githubToken: 'ghp_savedtoken',
           githubRepo: 'saved/repo',
           githubBranch: 'saved-branch',
+          githubFolder: 'leetcode',
           saveNotesAndTimer: true
         });
       }),
@@ -41,6 +42,7 @@ describe('Options Page', () => {
       <span id="toggleToken">SHOW</span>
       <input type="text" id="githubRepo">
       <input type="text" id="githubBranch" value="main">
+      <input type="text" id="githubFolder">
       <input type="checkbox" id="saveNotesAndTimer" checked>
       <button id="test">Test Connection</button>
       <button id="save">Save Settings</button>
@@ -59,18 +61,20 @@ describe('Options Page', () => {
       'githubToken',
       'githubRepo',
       'githubBranch',
+      'githubFolder',
       'saveNotesAndTimer'
     ], expect.any(Function));
 
     expect(document.getElementById('githubToken').value).toBe('ghp_savedtoken');
     expect(document.getElementById('githubRepo').value).toBe('saved/repo');
     expect(document.getElementById('githubBranch').value).toBe('saved-branch');
+    expect(document.getElementById('githubFolder').value).toBe('leetcode');
     expect(document.getElementById('saveNotesAndTimer').checked).toBe(true);
   });
 
   test('should default saveNotesAndTimer to false when stored that way', () => {
     chrome.storage.sync.get.mockImplementationOnce((keys, callback) => {
-      callback({ githubToken: 'ghp_t', githubRepo: 'o/r', githubBranch: 'main', saveNotesAndTimer: false });
+      callback({ githubToken: 'ghp_t', githubRepo: 'o/r', githubBranch: 'main', githubFolder: '', saveNotesAndTimer: false });
     });
     document.dispatchEvent(new Event('DOMContentLoaded'));
 
@@ -108,6 +112,7 @@ describe('Options Page', () => {
     tokenInput.value = 'ghp_newtoken';
     repoInput.value = 'new/repo';
     branchInput.value = 'prod';
+    document.getElementById('githubFolder').value = '';
     notesToggle.checked = false;
 
     saveButton.dispatchEvent(new Event('click'));
@@ -116,6 +121,7 @@ describe('Options Page', () => {
       githubToken: 'ghp_newtoken',
       githubRepo: 'new/repo',
       githubBranch: 'prod',
+      githubFolder: '',
       saveNotesAndTimer: false
     }, expect.any(Function));
 

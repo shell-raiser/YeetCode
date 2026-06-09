@@ -3,6 +3,9 @@
 
 let isSubmitting = false;
 
+const SAVER_SVG_URL = chrome.runtime.getURL('catcodeSmall.svg');
+const YEET_BUTTON_HTML = `<img src="${SAVER_SVG_URL}" style="height:14px;width:16px;margin-right:4px" alt=""> Yeet`;
+
 // Expose functions for testing
 window.LeetCodeCodeSaver = {
     getProblemInfoFromUrl: function(urlString) {
@@ -165,25 +168,28 @@ function createCustomButton(submitButton) {
     // Create our custom button
     const customButton = document.createElement('button');
     customButton.id = 'leetcode-saver-button';
-    customButton.textContent = 'Save to GitHub';
+    customButton.innerHTML = YEET_BUTTON_HTML;
     customButton.style.marginLeft = '8px';
     customButton.style.padding = '6px 12px';
-    customButton.style.backgroundColor = '#4CAF50';
-    customButton.style.color = 'white';
+    customButton.style.backgroundColor = '#d3d3d3';
+    customButton.style.color = '#333333';
     customButton.style.border = 'none';
     customButton.style.borderRadius = '4px';
     customButton.style.cursor = 'pointer';
     customButton.style.fontSize = '14px';
     customButton.style.fontWeight = 'bold';
     customButton.style.transition = 'background-color 0.2s';
+    customButton.style.display = 'inline-flex';
+    customButton.style.alignItems = 'center';
+    customButton.style.justifyContent = 'center';
     
     // Add hover effect
     customButton.addEventListener('mouseover', function() {
-        customButton.style.backgroundColor = '#45a049';
+        customButton.style.backgroundColor = '#b0b0b0';
     });
     
     customButton.addEventListener('mouseout', function() {
-        customButton.style.backgroundColor = '#4CAF50';
+        customButton.style.backgroundColor = '#d3d3d3';
     });
     
     // Insert the button after the submit button
@@ -216,7 +222,7 @@ function createCustomButton(submitButton) {
                 timerValue: timerValue
             }, function(response) {
                 customButton.disabled = false;
-                customButton.textContent = 'Save to GitHub';
+                customButton.innerHTML = YEET_BUTTON_HTML;
                 
                 if (chrome.runtime.lastError) {
                     console.error('Runtime error:', chrome.runtime.lastError);
@@ -227,7 +233,7 @@ function createCustomButton(submitButton) {
                 if (response && response.success) {
                     customButton.textContent = 'Saved!';
                     setTimeout(() => {
-                        customButton.textContent = 'Save to GitHub';
+                        customButton.innerHTML = YEET_BUTTON_HTML;
                     }, 2000);
                     showStatusMessage('Code saved to GitHub successfully!', 'success');
                 } else {
@@ -238,7 +244,7 @@ function createCustomButton(submitButton) {
             
         } catch (error) {
             console.error('Error saving to GitHub:', error);
-            customButton.textContent = 'Save to GitHub';
+            customButton.innerHTML = YEET_BUTTON_HTML;
             customButton.disabled = false;
             showStatusMessage(`Error: ${error.message}`, 'error');
         }
@@ -278,7 +284,7 @@ async function triggerAutoSave() {
                 if (manualButton) {
                     manualButton.textContent = 'Auto-Saved!';
                     setTimeout(() => {
-                        manualButton.textContent = 'Save to GitHub';
+                        manualButton.innerHTML = YEET_BUTTON_HTML;
                     }, 2000);
                 }
             } else {

@@ -47,12 +47,14 @@ async function getExtensionSettings() {
             'githubToken',
             'githubRepo',
             'githubBranch',
+            'githubFolder',
             'saveNotesAndTimer'
         ], function(items) {
             resolve({
                 token: items.githubToken || '',
                 repo: items.githubRepo || '',
                 branch: items.githubBranch || 'main',
+                folder: items.githubFolder || '',
                 saveNotesAndTimer: items.saveNotesAndTimer !== undefined ? items.saveNotesAndTimer : true
             });
         });
@@ -226,7 +228,8 @@ async function handleSaveToGitHub(code, problemInfo, languageId, notesText, time
     
     // --- Commit 1: Code file ---
     const ext = getExtensionForLanguage(languageId);
-    const codeFilePath = `${sanitizedTitle}/${sanitizedTitle}${ext}`;
+    const folderPrefix = settings.folder ? `${settings.folder}/` : '';
+    const codeFilePath = `${folderPrefix}${sanitizedTitle}/${sanitizedTitle}${ext}`;
     const codeCommitMessage = `Save LeetCode solution: ${problemInfo.title} (${problemInfo.timestamp || new Date().toISOString()})`;
     
     const codeResult = await commitFileToGitHub(settings, codeFilePath, code, codeCommitMessage);
@@ -235,7 +238,7 @@ async function handleSaveToGitHub(code, problemInfo, languageId, notesText, time
     let notesResult = null;
     if (settings.saveNotesAndTimer) {
         const notesMarkdown = buildNotesMarkdown(problemInfo, notesText, timerValue, languageId);
-        const notesFilePath = `${sanitizedTitle}/${sanitizedTitle}-notes.md`;
+        const notesFilePath = `${folderPrefix}${sanitizedTitle}/${sanitizedTitle}-notes.md`;
         const notesCommitMessage = `Save notes for: ${problemInfo.title} (${problemInfo.timestamp || new Date().toISOString()})`;
         
         notesResult = await commitFileToGitHub(settings, notesFilePath, notesMarkdown, notesCommitMessage);

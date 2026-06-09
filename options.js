@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const githubTokenInput = document.getElementById('githubToken');
     const githubRepoInput = document.getElementById('githubRepo');
     const githubBranchInput = document.getElementById('githubBranch');
+    const githubFolderInput = document.getElementById('githubFolder');
     const saveNotesAndTimerInput = document.getElementById('saveNotesAndTimer');
     const toggleTokenSpan = document.getElementById('toggleToken');
     
@@ -14,11 +15,13 @@ document.addEventListener('DOMContentLoaded', function() {
         'githubToken',
         'githubRepo',
         'githubBranch',
+        'githubFolder',
         'saveNotesAndTimer'
     ], function(items) {
         if (items.githubToken) githubTokenInput.value = items.githubToken;
         if (items.githubRepo) githubRepoInput.value = items.githubRepo;
         if (items.githubBranch) githubBranchInput.value = items.githubBranch;
+        if (items.githubFolder) githubFolderInput.value = items.githubFolder;
         saveNotesAndTimerInput.checked = items.saveNotesAndTimer !== undefined ? items.saveNotesAndTimer : true;
     });
 
@@ -82,6 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const token = githubTokenInput.value.trim();
         const repo = githubRepoInput.value.trim();
         const branch = githubBranchInput.value.trim() || 'main';
+        const folder = githubFolderInput.value.trim();
 
         if (!token) {
             showStatus('Please enter your GitHub Personal Access Token.', 'error');
@@ -104,6 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
             githubToken: token,
             githubRepo: repo,
             githubBranch: branch,
+            githubFolder: folder,
             saveNotesAndTimer: saveNotesAndTimerInput.checked
         }, function() {
             saveButton.disabled = false;

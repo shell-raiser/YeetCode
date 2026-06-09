@@ -39,7 +39,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["pageBridge.js"],
+      "resources": ["pageBridge.js", "catcodeSmall.svg"],
       "matches": ["*://leetcode.com/*"]
     }
   ]

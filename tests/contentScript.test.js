@@ -128,7 +128,7 @@ describe('YeetCode Extension', () => {
 
       const saveButton = document.getElementById('leetcode-saver-button');
       expect(saveButton).not.toBeNull();
-      expect(saveButton.textContent).toBe('Save to GitHub');
+      expect(saveButton.textContent).toContain('Yeet');
     });
 
     test('should detect Accepted submission status from the DOM', () => {
@@ -425,7 +425,7 @@ describe('YeetCode Extension', () => {
       });
     });
 
-    test('should ignore legacy folder settings and save to the problem folder at repo root', (done) => {
+    test('should prepend parent folder when githubFolder is set', (done) => {
       fetch
         .mockResolvedValueOnce({ ok: false, status: 404, json: () => Promise.resolve({ message: 'Not Found' }) })
         .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ content: { sha: 'code-sha' } }) })
@@ -448,10 +448,8 @@ describe('YeetCode Extension', () => {
           expect(response.success).toBe(true);
           const codeUrl = fetch.mock.calls[1][0];
           const notesUrl = fetch.mock.calls[3][0];
-          expect(codeUrl).toContain('/contents/two-sum/two-sum.py');
-          expect(notesUrl).toContain('/contents/two-sum/two-sum-notes.md');
-          expect(codeUrl).not.toContain('solutions/');
-          expect(notesUrl).not.toContain('solutions/');
+          expect(codeUrl).toContain('/contents/solutions/two-sum/two-sum.py');
+          expect(notesUrl).toContain('/contents/solutions/two-sum/two-sum-notes.md');
           done();
         } catch (e) { done(e); }
       });

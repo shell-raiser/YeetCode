@@ -1,5 +1,5 @@
 {
-  "name": "leetcode-code-saver",
+  "name": "yeetcode",
   "version": "1.0.0",
   "description": "A browser extension to save LeetCode code to GitHub",
   "main": "contentScript.js",
@@ -14,7 +14,7 @@
     "browser-extension",
     "chrome-extension"
   ],
-  "author": "LeetCode Code Saver Contributors",
+  "author": "shell-raiser",
   "license": "MIT",
   "devDependencies": {
     "@jest/globals": "^29.0.0",

@@ -1,4 +1,4 @@
-// LeetCode Code Saver Content Script
+// YeetCode Content Script
 // Handles UI modification, Monaco editor extraction, submission tracking, notes/timer scraping, and messaging
 
 let isSubmitting = false;

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="svg66" width="220" height="220" role="img" version="1.1" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+ <title id="title1">GitHub Octocat in LeetCode style – 3 variations</title>
+ <desc id="desc1">Three logo variations combining the GitHub Octocat silhouette with LeetCode's orange and dark color scheme</desc>
+ <defs id="defs16">
+  <clipPath id="clipPath70">
+   <circle id="circle70" cx="390" cy="200" r="110"/>
+  </clipPath>
+  <clipPath id="clipPath71">
+   <circle id="circle71" cx="390" cy="200" r="110"/>
+  </clipPath>
+  <clipPath id="clipPath72">
+   <circle id="circle72" cx="390" cy="200" r="110"/>
+  </clipPath>
+ </defs>
+ <!-- ═══════════════════════════════════════════════ -->
+ <!-- VAR 1: Dark circle, full orange octocat silhouette -->
+ <!-- ═══════════════════════════════════════════════ -->
+ <!-- Octocat full silhouette in LeetCode orange, clipped -->
+ <!-- Circle border -->
+ <!-- ═══════════════════════════════════════════════ -->
+ <!-- VAR 2: Dark silhouette, orange accent tail & details (closest to ref) -->
+ <!-- ═══════════════════════════════════════════════ -->
+ <ellipse id="ellipse80" transform="matrix(1.7979 0 0 1.7979 -596.89 -221.47)" cx="390" cy="185" rx="58" ry="52" clip-path="url(#clipPath72)" color="#ffffff" dominant-baseline="auto" fill="#ffa116"/>
+ <path id="path80" transform="matrix(1.7979 0 0 1.7979 -596.89 -221.47)" d="m344 155q-8-27 12-25 14 2 12 22z" clip-path="url(#clipPath71)" color="#ffffff" dominant-baseline="auto" fill="#ffa116"/>
+ <path id="path81" transform="matrix(1.7979 0 0 1.7979 -596.89 -221.47)" d="m436 155q8-27-12-25-14 2-12 22z" clip-path="url(#clipPath70)" color="#ffffff" dominant-baseline="auto" fill="#ffa116"/>
+ <ellipse id="ellipse34" transform="matrix(1.7979 0 0 1.7979 -586.1 -217.88)" cx="390" cy="185" rx="58" ry="52" clip-path="url(#clipPath72)" color="#ffffff" dominant-baseline="auto" fill="#1a1a1a"/>
+ <path id="path34" transform="matrix(1.7979 0 0 1.7979 -586.1 -217.88)" d="m344 155q-8-27 12-25 14 2 12 22z" clip-path="url(#clipPath71)" color="#ffffff" dominant-baseline="auto" fill="#1a1a1a"/>
+ <path id="path35" transform="matrix(1.7979 0 0 1.7979 -586.1 -217.88)" d="m436 155q8-27-12-25-14 2-12 22z" clip-path="url(#clipPath70)" color="#ffffff" dominant-baseline="auto" fill="#1a1a1a"/>
+ <!-- ═══════════════════════════════════════════════ -->
+ <!-- VAR 3: Transparent/white bg, two-tone orange+dark split -->
+ <!-- ═══════════════════════════════════════════════ -->
+ <!-- Palette row -->
+ <ellipse id="ellipse24-6" cx="125.59" cy="113.74" rx="71.914" ry="61.127" color="#ffffff" dominant-baseline="auto" fill="#ffa116"/>
+ <metadata id="metadata1">
+  <rdf:RDF>
+   <cc:Work rdf:about="">
+    <dc:title>GitHub Octocat in LeetCode style – 3 variations</dc:title>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+</svg>

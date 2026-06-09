@@ -1,7 +1,7 @@
-// Background service worker for LeetCode Code Saver extension
+// Background service worker for YeetCode extension
 // Handles all network requests to GitHub API to bypass CORS/CSP restrictions on LeetCode.com
 
-console.log('LeetCode Code Saver background service worker started');
+console.log('YeetCode background service worker started');
 
 // Mapping of Monaco language IDs to file extensions
 const LANGUAGE_EXTENSIONS = {

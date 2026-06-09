@@ -1,0 +1,488 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="225"
+   viewBox="0 0 225 222"
+   role="img"
+   version="1.1"
+   id="svg66"
+   sodipodi:docname="octocat_leetcode_logos.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   height="222"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview66"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="1.4237762"
+     inkscape:cx="55.135069"
+     inkscape:cy="146.79273"
+     inkscape:window-width="1280"
+     inkscape:window-height="691"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg66" />
+  <title
+     id="title1">GitHub Octocat in LeetCode style – 3 variations</title>
+  <desc
+     id="desc1">Three logo variations combining the GitHub Octocat silhouette with LeetCode's orange and dark color scheme</desc>
+  <defs
+     id="defs16">
+    <clipPath
+       id="c1">
+      <circle
+         cx="150"
+         cy="200"
+         r="110"
+         id="circle1" />
+    </clipPath>
+    <clipPath
+       id="c3">
+      <circle
+         cx="610"
+         cy="200"
+         r="95"
+         id="circle3" />
+    </clipPath>
+    <mask
+       id="imagine-text-gaps-2vzw05"
+       maskUnits="userSpaceOnUse">
+      <rect
+         x="0"
+         y="0"
+         width="715"
+         height="560"
+         fill="#ffffff"
+         id="rect3" />
+      <rect
+         x="112.90105"
+         y="322.33334"
+         width="74.197922"
+         height="17.333334"
+         fill="#000000"
+         rx="2"
+         id="rect4" />
+      <rect
+         x="88.53125"
+         y="338.66669"
+         width="122.9375"
+         height="16"
+         fill="#000000"
+         rx="2"
+         id="rect5" />
+      <rect
+         x="352.90106"
+         y="322.33334"
+         width="74.197922"
+         height="17.333334"
+         fill="#000000"
+         rx="2"
+         id="rect6" />
+      <rect
+         x="317.21356"
+         y="338.66669"
+         width="145.84164"
+         height="16"
+         fill="#000000"
+         rx="2"
+         id="rect7" />
+      <rect
+         x="572.90106"
+         y="307.33334"
+         width="74.197922"
+         height="17.333334"
+         fill="#000000"
+         rx="2"
+         id="rect8" />
+      <rect
+         x="530.18231"
+         y="323.66669"
+         width="160.12598"
+         height="16"
+         fill="#000000"
+         rx="2"
+         id="rect9" />
+      <rect
+         x="318.875"
+         y="383.66669"
+         width="42.25"
+         height="16"
+         fill="#000000"
+         rx="2"
+         id="rect10" />
+      <rect
+         x="200.06772"
+         y="422"
+         width="43.864586"
+         height="14"
+         fill="#000000"
+         rx="2"
+         id="rect11" />
+      <rect
+         x="229.23959"
+         y="422"
+         width="45.520836"
+         height="14"
+         fill="#000000"
+         rx="2"
+         id="rect12" />
+      <rect
+         x="259.48959"
+         y="422"
+         width="45.020836"
+         height="14"
+         fill="#000000"
+         rx="2"
+         id="rect13" />
+      <rect
+         x="288.98438"
+         y="422"
+         width="46.03125"
+         height="14"
+         fill="#000000"
+         rx="2"
+         id="rect14" />
+      <rect
+         x="318.23959"
+         y="422"
+         width="47.687176"
+         height="14"
+         fill="#000000"
+         rx="2"
+         id="rect15" />
+      <rect
+         x="348.74481"
+         y="422"
+         width="46.510418"
+         height="14"
+         fill="#000000"
+         rx="2"
+         id="rect16" />
+    </mask>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath66">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle66" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath67">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle67" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath68">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle68" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath69">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle69" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath70">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle70" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath71">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle71" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath72">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle72" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath73">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle73" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath74">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle74" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath75">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle75" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath76">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle76" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath77">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle77" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath78">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle78" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath79">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle79" />
+    </clipPath>
+  </defs>
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- VAR 1: Dark circle, full orange octocat silhouette -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- Octocat full silhouette in LeetCode orange, clipped -->
+  <!-- Circle border -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- VAR 2: Dark silhouette, orange accent tail & details (closest to ref) -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <circle
+     cx="115"
+     cy="111"
+     r="110"
+     fill="#2D2D2D"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#2d2d2d;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="circle29" />
+  <path
+     d="m 330,290 q -20,20 -22,45 -2,20 17,25 15,3 20,-15 3,-15 15,-27 l 10,-18 z"
+     fill="#1A1A1A"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#1a1a1a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="path29"
+     clip-path="url(#clipPath79)"
+     transform="translate(-271,-89)" />
+  <path
+     d="m 355,305 q -7,25 -3,50 4,20 23,17 17,-4 15,-24 -2,-20 2,-40 z"
+     fill="#1A1A1A"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#1a1a1a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="path30"
+     clip-path="url(#clipPath78)"
+     transform="translate(-271,-89)" />
+  <path
+     d="m 390,308 v 74 z"
+     fill="#1A1A1A"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#1a1a1a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="path31"
+     clip-path="url(#clipPath77)"
+     transform="translate(-271,-89)" />
+  <path
+     d="m 425,305 q 7,25 3,50 -4,20 -23,17 -17,-4 -15,-24 2,-20 -2,-40 z"
+     fill="#1A1A1A"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#1a1a1a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="path32"
+     clip-path="url(#clipPath76)"
+     transform="translate(-271,-89)" />
+  <path
+     d="m 450,290 q 20,20 22,45 2,20 -17,25 -15,3 -20,-15 -3,-15 -15,-27 l -10,-18 z"
+     fill="#1A1A1A"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#1a1a1a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="path33"
+     clip-path="url(#clipPath75)"
+     transform="translate(-279,-89)" />
+  <rect
+     x="370"
+     y="218"
+     width="40"
+     height="30"
+     rx="4"
+     fill="#1A1A1A"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#1a1a1a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="rect33"
+     clip-path="url(#clipPath73)"
+     transform="translate(-271,-89)" />
+  <g
+     id="g81"
+     style="fill:#ffa116;fill-opacity:1"
+     transform="translate(-277,-91)">
+    <ellipse
+       cx="390"
+       cy="258"
+       rx="60"
+       ry="55"
+       fill="#1A1A1A"
+       style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#ffa116;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="ellipse79"
+       clip-path="url(#clipPath74)" />
+    <ellipse
+       cx="390"
+       cy="185"
+       rx="58"
+       ry="52"
+       fill="#1A1A1A"
+       style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#ffa116;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="ellipse80"
+       clip-path="url(#clipPath72)" />
+    <path
+       d="m 344,155 q -8,-27 12,-25 14,2 12,22 z"
+       fill="#1A1A1A"
+       style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#ffa116;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="path80"
+       clip-path="url(#clipPath71)" />
+    <path
+       d="m 436,155 q 8,-27 -12,-25 -14,2 -12,22 z"
+       fill="#1A1A1A"
+       style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#ffa116;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="path81"
+       clip-path="url(#clipPath70)" />
+  </g>
+  <g
+     id="g79"
+     transform="translate(-271,-89)">
+    <ellipse
+       cx="390"
+       cy="258"
+       rx="60"
+       ry="55"
+       fill="#1A1A1A"
+       style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#1a1a1a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="ellipse33"
+       clip-path="url(#clipPath74)" />
+    <ellipse
+       cx="390"
+       cy="185"
+       rx="58"
+       ry="52"
+       fill="#1A1A1A"
+       style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#1a1a1a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="ellipse34"
+       clip-path="url(#clipPath72)" />
+    <path
+       d="m 344,155 q -8,-27 12,-25 14,2 12,22 z"
+       fill="#1A1A1A"
+       style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#1a1a1a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="path34"
+       clip-path="url(#clipPath71)" />
+    <path
+       d="m 436,155 q 8,-27 -12,-25 -14,2 -12,22 z"
+       fill="#1A1A1A"
+       style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#1a1a1a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="path35"
+       clip-path="url(#clipPath70)" />
+  </g>
+  <path
+     d="m 332,270 q -32,-20 -37,-40 -5,-20 15,-25 18,-3 20,15 2,16 16,28"
+     stroke="#555"
+     stroke-width="14"
+     fill="none"
+     stroke-linecap="round"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:none;stroke:#555555;stroke-width:14px;stroke-linecap:round;stroke-linejoin:miter"
+     id="path36"
+     clip-path="url(#clipPath69)"
+     transform="translate(-271,-89)" />
+  <path
+     d="m 332,270 q -32,-20 -37,-40 -5,-20 15,-25 18,-3 20,15 2,16 16,28"
+     stroke="#FFA116"
+     stroke-width="7"
+     fill="none"
+     stroke-linecap="round"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:none;stroke:#ffa116;stroke-width:7px;stroke-linecap:round;stroke-linejoin:miter"
+     id="path37"
+     clip-path="url(#clipPath68)"
+     transform="translate(-271,-89)" />
+  <path
+     d="m 308,214 q 8,-4 14,2"
+     stroke="#FF6B00"
+     stroke-width="4"
+     fill="none"
+     stroke-linecap="round"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:none;stroke:#ff6b00;stroke-width:4px;stroke-linecap:round;stroke-linejoin:miter"
+     id="path38"
+     clip-path="url(#clipPath67)"
+     transform="translate(-271,-89)" />
+  <path
+     d="m 303,224 q 9,-5 16,2"
+     stroke="#FF6B00"
+     stroke-width="4"
+     fill="none"
+     stroke-linecap="round"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:none;stroke:#ff6b00;stroke-width:4px;stroke-linecap:round;stroke-linejoin:miter"
+     id="path39"
+     clip-path="url(#clipPath66)"
+     transform="translate(-271,-89)" />
+  <circle
+     cx="111"
+     cy="111"
+     r="110"
+     fill="none"
+     stroke="#333"
+     stroke-width="2"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:none;stroke:#333333;stroke-width:2px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="circle39" />
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- VAR 3: Transparent/white bg, two-tone orange+dark split -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- Palette row -->
+  <ellipse
+     cx="124.85657"
+     cy="95.451874"
+     rx="40"
+     ry="34"
+     fill="#CC7A00"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#ffa116;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;fill-opacity:1"
+     id="ellipse24-6" />
+</svg>

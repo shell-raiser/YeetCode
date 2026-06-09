@@ -1,5 +1,5 @@
 /**
- * Unit tests for LeetCode Code Saver extension
+ * Unit tests for YeetCode extension
  * Tests the real implementations of contentScript.js and background.js
  */
 
@@ -57,7 +57,7 @@ document.body.innerHTML = `
 require('../background.js');
 require('../contentScript.js');
 
-describe('LeetCode Code Saver Extension', () => {
+describe('YeetCode Extension', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     window.localStorage.clear();

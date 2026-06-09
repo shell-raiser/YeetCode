@@ -1,4 +1,4 @@
-# LeetCode Code Saver
+# YeetCode
 
 A browser extension that allows you to save your LeetCode code and notes directly to a GitHub repository with a single click.
 
@@ -71,7 +71,7 @@ To use this extension, you need to generate a GitHub Personal Access Token:
 
 1. Go to https://github.com/settings/personal-access-tokens
 2. Click "Generate new token" → "Generate new token (classic)"
-3. Give it a descriptive name (e.g., "LeetCode Code Saver")
+3. Give it a descriptive name (e.g., "YeetCode")
 4. Set expiration (recommended: no expiration or 6 months)
 5. Select the `repo` scope (full control of private repositories)
 6. Click "Generate token"

@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="220"
+   viewBox="0 0 220 220"
+   role="img"
+   version="1.1"
+   id="svg66"
+   sodipodi:docname="catcodeSmall.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   height="220"
+   inkscape:export-filename="catcode128.png"
+   inkscape:export-xdpi="6.9818182"
+   inkscape:export-ydpi="6.9818182"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <sodipodi:namedview
+     id="namedview66"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="1.4237762"
+     inkscape:cx="104.65128"
+     inkscape:cy="148.89981"
+     inkscape:window-width="1280"
+     inkscape:window-height="691"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg66"
+     showgrid="false" />
+  <title
+     id="title1">GitHub Octocat in LeetCode style – 3 variations</title>
+  <desc
+     id="desc1">Three logo variations combining the GitHub Octocat silhouette with LeetCode's orange and dark color scheme</desc>
+  <defs
+     id="defs16">
+    <clipPath
+       id="c1">
+      <circle
+         cx="150"
+         cy="200"
+         r="110"
+         id="circle1" />
+    </clipPath>
+    <clipPath
+       id="c3">
+      <circle
+         cx="610"
+         cy="200"
+         r="95"
+         id="circle3" />
+    </clipPath>
+    <mask
+       id="imagine-text-gaps-2vzw05"
+       maskUnits="userSpaceOnUse">
+      <rect
+         x="0"
+         y="0"
+         width="715"
+         height="560"
+         fill="#ffffff"
+         id="rect3" />
+      <rect
+         x="112.90105"
+         y="322.33334"
+         width="74.197922"
+         height="17.333334"
+         fill="#000000"
+         rx="2"
+         id="rect4" />
+      <rect
+         x="88.53125"
+         y="338.66669"
+         width="122.9375"
+         height="16"
+         fill="#000000"
+         rx="2"
+         id="rect5" />
+      <rect
+         x="352.90106"
+         y="322.33334"
+         width="74.197922"
+         height="17.333334"
+         fill="#000000"
+         rx="2"
+         id="rect6" />
+      <rect
+         x="317.21356"
+         y="338.66669"
+         width="145.84164"
+         height="16"
+         fill="#000000"
+         rx="2"
+         id="rect7" />
+      <rect
+         x="572.90106"
+         y="307.33334"
+         width="74.197922"
+         height="17.333334"
+         fill="#000000"
+         rx="2"
+         id="rect8" />
+      <rect
+         x="530.18231"
+         y="323.66669"
+         width="160.12598"
+         height="16"
+         fill="#000000"
+         rx="2"
+         id="rect9" />
+      <rect
+         x="318.875"
+         y="383.66669"
+         width="42.25"
+         height="16"
+         fill="#000000"
+         rx="2"
+         id="rect10" />
+      <rect
+         x="200.06772"
+         y="422"
+         width="43.864586"
+         height="14"
+         fill="#000000"
+         rx="2"
+         id="rect11" />
+      <rect
+         x="229.23959"
+         y="422"
+         width="45.520836"
+         height="14"
+         fill="#000000"
+         rx="2"
+         id="rect12" />
+      <rect
+         x="259.48959"
+         y="422"
+         width="45.020836"
+         height="14"
+         fill="#000000"
+         rx="2"
+         id="rect13" />
+      <rect
+         x="288.98438"
+         y="422"
+         width="46.03125"
+         height="14"
+         fill="#000000"
+         rx="2"
+         id="rect14" />
+      <rect
+         x="318.23959"
+         y="422"
+         width="47.687176"
+         height="14"
+         fill="#000000"
+         rx="2"
+         id="rect15" />
+      <rect
+         x="348.74481"
+         y="422"
+         width="46.510418"
+         height="14"
+         fill="#000000"
+         rx="2"
+         id="rect16" />
+    </mask>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath66">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle66" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath67">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle67" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath68">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle68" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath69">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle69" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath70">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle70" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath71">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle71" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath72">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle72" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath73">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle73" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath74">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle74" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath75">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle75" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath76">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle76" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath77">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle77" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath78">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle78" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath79">
+      <circle
+         cx="390"
+         cy="200"
+         r="110"
+         id="circle79" />
+    </clipPath>
+  </defs>
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- VAR 1: Dark circle, full orange octocat silhouette -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- Octocat full silhouette in LeetCode orange, clipped -->
+  <!-- Circle border -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- VAR 2: Dark silhouette, orange accent tail & details (closest to ref) -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <ellipse
+     cx="390"
+     cy="185"
+     rx="58"
+     ry="52"
+     fill="#1A1A1A"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#ffa116;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="ellipse80"
+     clip-path="url(#clipPath72)"
+     transform="matrix(1.7978623,0,0,1.7978623,-596.89028,-221.47412)" />
+  <path
+     d="m 344,155 q -8,-27 12,-25 14,2 12,22 z"
+     fill="#1A1A1A"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#ffa116;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="path80"
+     clip-path="url(#clipPath71)"
+     transform="matrix(1.7978623,0,0,1.7978623,-596.89028,-221.47412)" />
+  <path
+     d="m 436,155 q 8,-27 -12,-25 -14,2 -12,22 z"
+     fill="#1A1A1A"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#ffa116;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="path81"
+     clip-path="url(#clipPath70)"
+     transform="matrix(1.7978623,0,0,1.7978623,-596.89028,-221.47412)" />
+  <ellipse
+     cx="390"
+     cy="185"
+     rx="58"
+     ry="52"
+     fill="#1A1A1A"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#1a1a1a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="ellipse34"
+     clip-path="url(#clipPath72)"
+     transform="matrix(1.7978623,0,0,1.7978623,-586.1031,-217.87838)" />
+  <path
+     d="m 344,155 q -8,-27 12,-25 14,2 12,22 z"
+     fill="#1A1A1A"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#1a1a1a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="path34"
+     clip-path="url(#clipPath71)"
+     transform="matrix(1.7978623,0,0,1.7978623,-586.1031,-217.87838)" />
+  <path
+     d="m 436,155 q 8,-27 -12,-25 -14,2 -12,22 z"
+     fill="#1A1A1A"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#1a1a1a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="path35"
+     clip-path="url(#clipPath70)"
+     transform="matrix(1.7978623,0,0,1.7978623,-586.1031,-217.87838)" />
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- VAR 3: Transparent/white bg, two-tone orange+dark split -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- Palette row -->
+  <ellipse
+     cx="125.59254"
+     cy="113.74071"
+     rx="71.914497"
+     ry="61.127323"
+     fill="#CC7A00"
+     style="color:#ffffff;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;fill:#ffa116;fill-opacity:1;stroke:none;stroke-width:1.79786px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="ellipse24-6" />
+  <metadata
+     id="metadata1">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>GitHub Octocat in LeetCode style – 3 variations</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+</svg>

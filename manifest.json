@@ -32,7 +32,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://leetcode.com/problems/*"],
+      "matches": ["*://leetcode.com/*"],
       "js": ["contentScript.js"],
       "run_at": "document_idle"
     }

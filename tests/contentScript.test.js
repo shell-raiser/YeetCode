@@ -7,21 +7,24 @@
 const messageListeners = [];
 global.chrome = {
   storage: {
+    onChanged: {
+      addListener: jest.fn()
+    },
     sync: {
-      get: jest.fn((keys, callback) => {
-        callback({
-          githubToken: 'ghp_mocktoken123',
-          githubRepo: 'owner/repo',
-          githubBranch: 'main',
-          githubFolder: '',
-          saveNotesAndTimer: true
-        });
-      }),
-      set: jest.fn((items, callback) => {
-        if (callback) callback();
-      })
-    }
-  },
+        get: jest.fn((keys, callback) => {
+          callback({
+            githubToken: 'ghp_mocktoken123',
+            githubRepo: 'owner/repo',
+            githubBranch: 'main',
+            githubFolder: '',
+            saveNotesAndTimer: true
+          });
+        }),
+        set: jest.fn((items, callback) => {
+          if (callback) callback();
+        })
+      }
+    },
   runtime: {
     onMessage: {
       addListener: jest.fn((listener) => {

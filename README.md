@@ -12,6 +12,7 @@ A browser extension that allows you to save your LeetCode code and notes directl
 - **Per-Problem Files**: Each problem is saved in a seperate folder named after the question. You can set a parent folder if you want.
 - **Configurable Repository**: Set your GitHub repository and branch in extension options
 - **Git History Friendly**: Repeated saves update the same code and notes files, with submission time in the commit message
+- **AI Helper (Socratic mode)**: Optional on-page AI coach that nudges you toward the solution with questions instead of giving answers. Timed check-ins review your direction, a solve-time limit offers a guided walkthrough, and per-concept experience levels keep the AI within what you actually know
 
 ## Installation
 
@@ -39,19 +40,36 @@ A browser extension that allows you to save your LeetCode code and notes directl
 7. Click "Save to GitHub" to save your current work
 8. Check your GitHub repository for files like `two-sum/two-sum.py` and `two-sum/two-sum-notes.md`
 
+## AI Helper
+
+Enable it in the options page. It is powered by any OpenAI-compatible chat completions endpoint (bring your own key and model), so your code and prompts only go to the provider you choose.
+
+How the session works on each problem page:
+
+- **Check-in (default 15 min)**: the AI silently reviews your current code and the problem statement. If your direction looks right you get a quiet "keep going" toast; otherwise it offers a nudge, which you can always decline.
+- **Nudges**: accepted nudges use the Socratic method — the AI asks leading questions from *your* current code, style and variable names. It never hands you a complete solution.
+- **Time limit (default 45 min)**: the AI suggests moving on to learning the solution and can switch into a guided, step-by-step walkthrough.
+- **Ask-anytime**: an "AI Help" button next to the Yeet button opens a chat panel. The "Ask-after" setting (default 5 min) prevents rage-quitting into help too early — set it to 0 to disable the lock.
+- **Concept levels**: tell it what you've studied (Graphs, DP, Trees, … and at what level). The AI avoids topics you haven't learned unless the problem truly requires them, and then teaches the concept from first principles.
+
+Timings, concept levels, endpoint and key are all configurable in the options page.
+
+> **Security Note**: the AI API key is stored in Chrome's sync storage like the GitHub token, and requests are sent directly from your browser to the endpoint you configure. No third-party server is involved.
+
 ## Architecture
 
 The extension consists of four main components:
 
 1. **manifest.json** - Defines the extension's metadata, permissions, and content scripts
-2. **options.html/options.js** - Popup page for configuring GitHub settings
+2. **options.html/options.js** - Popup page for configuring GitHub settings, the AI Helper endpoint/key, Socratic nudge timings and concept experience levels
 3. **contentScript.js** - Main logic that runs on LeetCode pages:
-   - Adds the custom "Save to GitHub" button
+   - Adds the custom "Save to GitHub" button and the "AI Help" button
    - Retrieves code from LeetCode's editor
    - Gets problem information (title, URL, timestamp)
    - Fetches saved GitHub settings
    - Saves code to GitHub via GitHub API
-4. **background.js** - Service worker (currently minimal, can be expanded for future features)
+   - Runs the AI Helper session timer: timed direction checks, nudge offers, the solve-time limit notice and the Socratic chat panel
+4. **background.js** - Service worker that handles GitHub API calls and OpenAI-compatible AI requests (embedding the Socratic teaching rules and your concept levels in the system prompt)
 
 ## GitHub Personal Access Token
 

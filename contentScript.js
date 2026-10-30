@@ -64,16 +64,21 @@ const observer = new MutationObserver(() => {
 
 function scanPageForSaverHooks() {
     try {
+        // 0. Track SPA navigation between problems for the AI helper session timer
+        updateAiSessionForUrl();
+
         // 1. Inject our custom manual button if it doesn't exist
         if (!document.getElementById('leetcode-saver-button')) {
             const submitButton = findSubmitButton();
             const editorContainer = findEditorContainer();
-                           
+
             if (submitButton && editorContainer) {
                 createCustomButton(submitButton);
             }
         }
-        
+
+        // 1b. Inject the AI Helper button if it doesn't exist
+        ensureAiButton();
         // 2. Attach submit button listener if not already done
         const submitButton = findSubmitButton();
         if (submitButton && !submitButton.dataset.hasSaveListener) {
@@ -618,4 +623,735 @@ Object.assign(window.LeetCodeCodeSaver, {
     getNotesValue,
     getTimerValue,
     scanPageForSaverHooks
+});
+
+// ─────────────────────────────────────────────────────
+// AI Helper — Socratic nudges on a user-configured timer (issue #4)
+// ─────────────────────────────────────────────────────
+
+const AI_DEFAULT_SETTINGS = {
+    aiEnabled: false,
+    nudgeAtMinutes: 15,
+    deadlineAtMinutes: 45,
+    minHelpMinutes: 5
+};
+
+const AI_HELPER = {
+    settings: { ...AI_DEFAULT_SETTINGS },
+    settingsLoaded: false,
+    currentSlug: null,
+    sessionStartMs: null,
+    solvedOnce: false,
+    nudgeCheckDone: false,
+    deadlineNotified: false,
+    history: [],
+    busy: false,
+    tickHandle: null
+};
+
+function getProblemSlug() {
+    const pathParts = window.location.pathname.split('/');
+    if (pathParts.length >= 3 && pathParts[1] === 'problems') {
+        return pathParts[2] || null;
+    }
+    return null;
+}
+
+function formatMinutesLabel(ms) {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadAiSettings(callback) {
+    chrome.storage.sync.get([
+        'aiEnabled',
+        'nudgeAtMinutes',
+        'deadlineAtMinutes',
+        'minHelpMinutes'
+    ], function(items) {
+        AI_HELPER.settings = {
+            aiEnabled: items.aiEnabled !== undefined ? items.aiEnabled : AI_DEFAULT_SETTINGS.aiEnabled,
+            nudgeAtMinutes: clampAiInt(items.nudgeAtMinutes, 1, 180, AI_DEFAULT_SETTINGS.nudgeAtMinutes),
+            deadlineAtMinutes: clampAiInt(items.deadlineAtMinutes, 2, 360, AI_DEFAULT_SETTINGS.deadlineAtMinutes),
+            minHelpMinutes: clampAiInt(items.minHelpMinutes, 0, 180, AI_DEFAULT_SETTINGS.minHelpMinutes)
+        };
+        AI_HELPER.settingsLoaded = true;
+        if (callback) callback();
+    });
+}
+
+function clampAiInt(value, min, max, fallback) {
+    const parsed = parseInt(value, 10);
+    if (isNaN(parsed)) return fallback;
+    return Math.min(max, Math.max(min, parsed));
+}
+
+function aiSessionStorageKey(slug) {
+    return `yc-ai-start:${slug}`;
+}
+
+// Called from the DOM scan loop: detects SPA navigation to another problem,
+// resets the per-problem AI session, and starts the timer on first run.
+function updateAiSessionForUrl() {
+    if (!AI_HELPER.settingsLoaded) return;
+
+    const slug = getProblemSlug();
+    if (!slug) return;
+
+    if (slug === AI_HELPER.currentSlug) return;
+
+    AI_HELPER.currentSlug = slug;
+    resetAiSession(slug);
+
+    if (!AI_HELPER.tickHandle) {
+        AI_HELPER.tickHandle = setInterval(() => {
+            aiHelperTick(Date.now());
+        }, 2000);
+    }
+}
+
+function resetAiSession(slug) {
+    let sessionStartMs;
+    try {
+        const stored = sessionStorage.getItem(aiSessionStorageKey(slug));
+        if (stored) {
+            sessionStartMs = parseInt(stored, 10);
+        }
+    } catch (e) { /* sessionStorage unavailable */ }
+
+    if (!sessionStartMs || isNaN(sessionStartMs)) {
+        sessionStartMs = Date.now();
+        try {
+            sessionStorage.setItem(aiSessionStorageKey(slug), String(sessionStartMs));
+        } catch (e) { /* sessionStorage unavailable */ }
+    }
+
+    AI_HELPER.sessionStartMs = sessionStartMs;
+    AI_HELPER.solvedOnce = false;
+    AI_HELPER.nudgeCheckDone = false;
+    AI_HELPER.deadlineNotified = false;
+    AI_HELPER.history = [];
+
+    removeAiNudgeOffer();
+    setAiPanelSubtitle(slug);
+    refreshAiAskButtonState();
+}
+
+function aiHelperTick(now) {
+    if (!AI_HELPER.settingsLoaded) return;
+    if (!AI_HELPER.settings.aiEnabled) return;
+
+    const slug = getProblemSlug();
+    if (!slug || slug !== AI_HELPER.currentSlug) {
+        updateAiSessionForUrl();
+        if (slug !== AI_HELPER.currentSlug) return;
+    }
+    if (AI_HELPER.sessionStartMs === null) return;
+
+    const elapsedMs = now - AI_HELPER.sessionStartMs;
+    const elapsedMin = elapsedMs / 60000;
+    refreshAiAskButtonState();
+
+    let checkpointPromise = null;
+    if (!AI_HELPER.nudgeCheckDone && elapsedMin >= AI_HELPER.settings.nudgeAtMinutes) {
+        AI_HELPER.nudgeCheckDone = true;
+        checkpointPromise = runDirectionCheck(elapsedMin);
+    }
+
+    if (!AI_HELPER.deadlineNotified && elapsedMin >= AI_HELPER.settings.deadlineAtMinutes) {
+        AI_HELPER.deadlineNotified = true;
+        deadlineReachedNotice();
+    }
+
+    return checkpointPromise || undefined;
+}
+
+// Neutralise the tick timers in tests / teardown
+function stopAiHelperTimers() {
+    if (AI_HELPER.tickHandle) {
+        clearInterval(AI_HELPER.tickHandle);
+        AI_HELPER.tickHandle = null;
+    }
+}
+
+function aiHasAcceptedSolution() {
+    try {
+        return window.LeetCodeCodeSaver.checkSubmissionSuccess();
+    } catch (e) {
+        return false;
+    }
+}
+
+async function getProblemStatement() {
+    const selectors = [
+        '[data-track-load="description_content"]',
+        'div[data-key="description-content"]',
+        'div.elfjS',
+        '#description-content',
+        '[data-cy="question-title"]'
+    ];
+
+    for (const selector of selectors) {
+        const el = document.querySelector(selector);
+        const text = el ? (el.innerText || el.textContent || '').trim() : '';
+        if (text && text.length > 40) {
+            return text.slice(0, 6000);
+        }
+    }
+
+    try {
+        const meta = document.querySelector('meta[name="description"]');
+        const fallback = meta ? (meta.content || '').trim() : '';
+        if (fallback.length > 40) return fallback.slice(0, 3000);
+    } catch (e) { /* ignore */ }
+
+    return null;
+}
+
+async function collectAiContext() {
+    let code = null;
+    let languageId = null;
+    try {
+        const extracted = await getCodeAndLanguageFromPage();
+        code = extracted.code;
+        languageId = extracted.languageId;
+    } catch (e) {
+        code = null;
+    }
+
+    const problemStatement = await getProblemStatement();
+    const slug = getProblemSlug();
+    const title = slug ? slug.replace(/-/g, ' ') : 'Unknown problem';
+
+    return {
+        problemTitle: title,
+        problemUrl: window.location.href,
+        problemStatement: problemStatement,
+        code: code,
+        languageId: languageId
+    };
+}
+
+function sendAiMessage(payload, callback) {
+    chrome.runtime.sendMessage({
+        action: 'aiChat',
+        history: AI_HELPER.history.slice(),
+        ...payload
+    }, function(response) {
+        if (chrome.runtime.lastError) {
+            callback({ success: false, error: chrome.runtime.lastError.message });
+            return;
+        }
+        if (!response) {
+            callback({ success: false, error: 'No response from the AI Helper background worker.' });
+            return;
+        }
+        callback(response);
+    });
+}
+
+// ── Direction check + nudge offer ──────────────────────────────────
+
+async function runDirectionCheck(elapsedMin) {
+    if (aiHasAcceptedSolution()) {
+        AI_HELPER.solvedOnce = true;
+        return;
+    }
+
+    const context = await collectAiContext();
+    if (AI_HELPER.solvedOnce || AI_HELPER.deadlineNotified) return;
+
+    const response = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({
+            action: 'aiDirection',
+            problemTitle: context.problemTitle,
+            problemUrl: context.problemUrl,
+            problemStatement: context.problemStatement,
+            code: context.code,
+            languageId: context.languageId
+        }, resolve);
+    });
+
+    if (AI_HELPER.solvedOnce || AI_HELPER.deadlineNotified) return;
+    if (chrome.runtime.lastError || !response || !response.success) {
+        // Silent failure: never nag about infrastructure errors during a session
+        console.warn('AI Helper direction check failed:', response && response.error);
+        return;
+    }
+
+    const direction = response.result;
+    if (direction.onTrack === true) {
+        showAiToast(`AI Helper: You're on the right track. Keep going!${direction.note ? ` (${direction.note})` : ''}`, 'success');
+    } else {
+        offerNudge(direction.note);
+    }
+}
+
+function offerNudge(note) {
+    removeAiNudgeOffer();
+
+    const offer = document.createElement('div');
+    offer.id = 'yc-ai-nudge-offer';
+    offer.style.cssText = [
+        'position:fixed', 'right:20px', 'bottom:20px', 'z-index:99999',
+        'width:300px', 'padding:14px', 'border-radius:10px',
+        'background:#1e1e1ee6', 'backdrop-filter:blur(12px)',
+        'border:1px solid rgba(255,255,255,0.12)',
+        'box-shadow:0 8px 32px rgba(0,0,0,0.4)',
+        'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif',
+        'color:#f5f5f5', 'font-size:13px', 'line-height:1.5'
+    ].join(';');
+
+    const text = document.createElement('div');
+    text.textContent = note
+        ? `AI Helper: ${note} — Want a nudge in the right direction?`
+        : 'AI Helper: It looks like you might be stuck. Want a nudge in the right direction?';
+    offer.appendChild(text);
+
+    const buttons = document.createElement('div');
+    buttons.style.cssText = 'display:flex;gap:8px;margin-top:10px;';
+
+    const acceptButton = document.createElement('button');
+    acceptButton.textContent = 'Get a nudge';
+    acceptButton.style.cssText = [
+        'flex:1', 'padding:7px 10px', 'border:none', 'border-radius:6px',
+        'background:#f39c12', 'color:#fff', 'font-size:12.5px', 'font-weight:600',
+        'cursor:pointer', 'font-family:inherit'
+    ].join(';');
+    acceptButton.addEventListener('click', () => {
+        removeAiNudgeOffer();
+        openAiPanel(() => {
+            startAiConversation('nudge', 'The user accepted a nudge offer. Please give them one small Socratic nudge from their current position.');
+        });
+    });
+
+    const declineButton = document.createElement('button');
+    declineButton.textContent = 'No thanks';
+    declineButton.style.cssText = [
+        'flex:1', 'padding:7px 10px', 'border:1px solid rgba(255,255,255,0.2)',
+        'border-radius:6px', 'background:transparent', 'color:#b0b0b0',
+        'font-size:12.5px', 'font-weight:500', 'cursor:pointer', 'font-family:inherit'
+    ].join(';');
+    declineButton.addEventListener('click', () => {
+        removeAiNudgeOffer();
+    });
+
+    buttons.appendChild(acceptButton);
+    buttons.appendChild(declineButton);
+    offer.appendChild(buttons);
+    document.body.appendChild(offer);
+}
+
+function removeAiNudgeOffer() {
+    const existing = document.getElementById('yc-ai-nudge-offer');
+    if (existing) existing.remove();
+}
+
+function showAiToast(message, type) {
+    showStatusMessage(message, type === 'success' ? 'success' : 'error');
+}
+
+// ── Deadline notice ────────────────────────────────────────────────
+
+function deadlineReachedNotice() {
+    if (aiHasAcceptedSolution()) {
+        AI_HELPER.solvedOnce = true;
+        return;
+    }
+
+    removeAiNudgeOffer();
+
+    const notice = document.createElement('div');
+    notice.id = 'yc-ai-nudge-offer';
+    notice.style.cssText = [
+        'position:fixed', 'right:20px', 'bottom:20px', 'z-index:99999',
+        'width:300px', 'padding:14px', 'border-radius:10px',
+        'background:#1e1e1ee6', 'backdrop-filter:blur(12px)',
+        'border:1px solid rgba(243,156,18,0.4)',
+        'box-shadow:0 8px 32px rgba(0,0,0,0.4)',
+        'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif',
+        'color:#f5f5f5', 'font-size:13px', 'line-height:1.5'
+    ].join(';');
+
+    const text = document.createElement('div');
+    text.textContent = `AI Helper: You've reached your ${AI_HELPER.settings.deadlineAtMinutes} minute time limit. Consider learning the solution now — or keep going with guided help.`;
+    notice.appendChild(text);
+
+    const buttons = document.createElement('div');
+    buttons.style.cssText = 'display:flex;gap:8px;margin-top:10px;';
+
+    const guidedButton = document.createElement('button');
+    guidedButton.textContent = 'Guide me (learn it)';
+    guidedButton.style.cssText = 'flex:1;padding:7px 10px;border:none;border-radius:6px;background:#f39c12;color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;';
+    guidedButton.addEventListener('click', () => {
+        notice.remove();
+        openAiPanel(() => {
+            startAiConversation('guided', 'The time limit was reached and the user chose to learn the solution instead of continuing alone. Begin the guided walkthrough from their current code.');
+        });
+    });
+
+    const keepButton = document.createElement('button');
+    keepButton.textContent = 'Keep trying';
+    keepButton.style.cssText = 'flex:1;padding:7px 10px;border:1px solid rgba(255,255,255,0.2);border-radius:6px;background:transparent;color:#b0b0b0;font-size:12.5px;font-weight:500;cursor:pointer;font-family:inherit;';
+    keepButton.addEventListener('click', () => {
+        notice.remove();
+    });
+
+    buttons.appendChild(guidedButton);
+    buttons.appendChild(keepButton);
+    notice.appendChild(buttons);
+    document.body.appendChild(notice);
+}
+
+// ── Chat panel ─────────────────────────────────────────────────────
+
+function ensureAiPanel() {
+    if (document.getElementById('yc-ai-panel')) {
+        return document.getElementById('yc-ai-panel');
+    }
+
+    const panel = document.createElement('div');
+    panel.id = 'yc-ai-panel';
+    panel.style.cssText = [
+        'position:fixed', 'right:16px', 'bottom:16px', 'z-index:99998',
+        'width:340px', 'max-width:calc(100vw - 32px)', 'height:420px',
+        'display:none', 'flex-direction:column',
+        'background:#181818f2', 'backdrop-filter:blur(16px)',
+        'border:1px solid rgba(255,255,255,0.12)', 'border-radius:12px',
+        'box-shadow:0 12px 48px rgba(0,0,0,0.5)',
+        'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif',
+        'color:#f5f5f5', 'overflow:hidden'
+    ].join(';');
+
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);';
+    const titleWrap = document.createElement('div');
+    const title = document.createElement('div');
+    title.textContent = 'AI Helper';
+    title.style.cssText = 'font-weight:700;font-size:13px;';
+    titleWrap.appendChild(title);
+    const subtitle = document.createElement('div');
+    subtitle.id = 'yc-ai-panel-subtitle';
+    subtitle.style.cssText = 'font-size:10.5px;color:#9ca3af;margin-top:1px;';
+    titleWrap.appendChild(subtitle);
+    const closeButton = document.createElement('button');
+    closeButton.id = 'yc-ai-panel-close';
+    closeButton.textContent = '×';
+    closeButton.style.cssText = 'background:transparent;border:none;color:#9ca3af;font-size:20px;cursor:pointer;line-height:1;padding:0 4px;font-family:inherit;';
+    closeButton.addEventListener('click', () => toggleAiPanel(false));
+    header.appendChild(titleWrap);
+    header.appendChild(closeButton);
+
+    const messages = document.createElement('div');
+    messages.id = 'yc-ai-messages';
+    messages.style.cssText = 'flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;font-size:12.5px;line-height:1.55;';
+
+    const notice = document.createElement('div');
+    notice.id = 'yc-ai-hint';
+    notice.textContent = 'The AI guides you with questions — it will never hand you a full solution.';
+    notice.style.cssText = 'padding:6px 14px;font-size:10.5px;color:#9ca3af;border-bottom:1px solid rgba(255,255,255,0.05);';
+
+    const inputRow = document.createElement('div');
+    inputRow.style.cssText = 'display:flex;gap:8px;padding:10px;border-top:1px solid rgba(255,255,255,0.08);';
+
+    const input = document.createElement('input');
+    input.id = 'yc-ai-input';
+    input.type = 'text';
+    input.placeholder = 'Ask a question…';
+    input.style.cssText = 'flex:1;padding:8px 10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#f5f5f5;font-size:12.5px;font-family:inherit;outline:none;';
+
+    const sendButton = document.createElement('button');
+    sendButton.id = 'yc-ai-send';
+    sendButton.textContent = 'Send';
+    sendButton.style.cssText = 'padding:8px 14px;border:none;border-radius:8px;background:#f39c12;color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;';
+
+    inputRow.appendChild(input);
+    inputRow.appendChild(sendButton);
+
+    panel.appendChild(header);
+    panel.appendChild(notice);
+    panel.appendChild(messages);
+    panel.appendChild(inputRow);
+    document.body.appendChild(panel);
+
+    sendButton.addEventListener('click', () => submitAiMessage());
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            submitAiMessage();
+        }
+    });
+
+    return panel;
+}
+
+function setAiPanelSubtitle(slug) {
+    const subtitle = document.getElementById('yc-ai-panel-subtitle');
+    if (subtitle) subtitle.textContent = slug || '';
+}
+
+function toggleAiPanel(forceOpen) {
+    const panel = ensureAiPanel();
+    const shouldOpen = forceOpen !== undefined ? forceOpen : panel.style.display !== 'flex';
+    panel.style.display = shouldOpen ? 'flex' : 'none';
+    if (shouldOpen) {
+        setAiPanelSubtitle(AI_HELPER.currentSlug);
+        refreshAiAskButtonState();
+        const messages = document.getElementById('yc-ai-messages');
+        if (messages && !messages.childElementCount) {
+            appendAiMessage('system', 'Hi! I\'ll guide you without spoiling solutions. Tell me where you\'re stuck, or wait for a timed check-in.');
+        }
+        const input = document.getElementById('yc-ai-input');
+        if (input) input.focus();
+    }
+}
+
+function openAiPanel(onOpened) {
+    toggleAiPanel(true);
+    if (onOpened) onOpened();
+}
+
+function appendAiMessage(role, content) {
+    const messages = document.getElementById('yc-ai-messages');
+    if (!messages) return;
+
+    const bubble = document.createElement('div');
+    bubble.className = `yc-ai-msg yc-ai-${role}`;
+    bubble.textContent = content;
+
+    if (role === 'user') {
+        bubble.style.cssText = 'align-self:flex-end;background:#f39c12;color:#fff;border-radius:10px 10px 2px 10px;padding:7px 10px;max-width:85%;white-space:pre-wrap;';
+    } else if (role === 'assistant') {
+        bubble.style.cssText = 'align-self:flex-start;background:rgba(255,255,255,0.07);color:#f5f5f5;border-radius:10px 10px 10px 2px;padding:7px 10px;max-width:88%;white-space:pre-wrap;';
+    } else {
+        bubble.style.cssText = 'align-self:center;background:transparent;color:#9ca3af;font-size:10.5px;text-align:center;max-width:90%;';
+    }
+
+    messages.appendChild(bubble);
+    messages.scrollTop = messages.scrollHeight;
+}
+
+function setAiBusy(busy) {
+    AI_HELPER.busy = busy;
+    const sendButton = document.getElementById('yc-ai-send');
+    const input = document.getElementById('yc-ai-input');
+    if (sendButton) {
+        sendButton.disabled = busy;
+        sendButton.textContent = busy ? '…' : 'Send';
+    }
+    if (input) input.disabled = busy;
+    if (busy) {
+        appendAiMessage('system', 'Thinking…');
+    } else {
+        const messages = document.getElementById('yc-ai-messages');
+        if (messages) {
+            const last = messages.lastElementChild;
+            if (last && last.textContent === 'Thinking…') last.remove();
+        }
+    }
+}
+
+function pushAiHistory(role, content) {
+    AI_HELPER.history.push({ role, content });
+    if (AI_HELPER.history.length > 16) {
+        AI_HELPER.history.splice(0, AI_HELPER.history.length - 16);
+    }
+}
+
+async function startAiConversation(mode, syntheticUserMessage) {
+    if (AI_HELPER.busy) return;
+    setAiBusy(true);
+
+    if (mode === 'guided') {
+        appendAiMessage('system', 'Time limit reached — switching to guided mode.');
+    }
+
+    const context = await collectAiContext();
+
+    sendAiMessage({
+        mode,
+        userMessage: syntheticUserMessage,
+        ...context
+    }, function(response) {
+        setAiBusy(false);
+        if (response.success) {
+            pushAiHistory('user', syntheticUserMessage);
+            pushAiHistory('assistant', response.result.reply);
+            appendAiMessage('assistant', response.result.reply);
+        } else {
+            appendAiMessage('system', `AI error: ${response.error}`);
+        }
+    });
+}
+
+async function submitAiMessage() {
+    if (AI_HELPER.busy) return;
+    const input = document.getElementById('yc-ai-input');
+    if (!input) return;
+    const message = (input.value || '').trim();
+    if (!message) return;
+
+    input.value = '';
+    appendAiMessage('user', message);
+    pushAiHistory('user', message);
+    setAiBusy(true);
+
+    const context = await collectAiContext();
+    sendAiMessage({
+        mode: 'ask',
+        userMessage: '',
+        ...context,
+        lastUserMessage: message
+    }, function(response) {
+        setAiBusy(false);
+        if (response.success) {
+            pushAiHistory('assistant', response.result.reply);
+            appendAiMessage('assistant', response.result.reply);
+        } else {
+            appendAiMessage('system', `AI error: ${response.error}`);
+        }
+    });
+}
+
+// ── AI Helper button (always-available "ask for help" entry point) ──
+
+function ensureAiButton() {
+    if (document.getElementById('yc-ai-button')) return;
+    if (!AI_HELPER.settingsLoaded || !AI_HELPER.settings.aiEnabled) return;
+
+    const saverButton = document.getElementById('leetcode-saver-button');
+    const submitButton = findSubmitButton();
+    let anchor = null;
+
+    if (saverButton && saverButton.parentNode) {
+        anchor = saverButton;
+    } else if (submitButton && submitButton.parentNode && submitButton.parentNode.parentNode) {
+        const submitWrapper = submitButton.parentNode;
+        const flexContainer = submitWrapper.parentNode;
+        if (flexContainer && flexContainer.insertBefore) {
+            const aiButton = buildAiButton();
+            flexContainer.insertBefore(aiButton, submitWrapper.nextSibling);
+        }
+        refreshAiAskButtonState();
+        return;
+    } else {
+        return;
+    }
+
+    const aiButton = buildAiButton();
+    anchor.parentNode.insertBefore(aiButton, anchor.nextSibling);
+    refreshAiAskButtonState();
+}
+
+function buildAiButton() {
+    const aiButton = document.createElement('button');
+    aiButton.id = 'yc-ai-button';
+    aiButton.textContent = '🤖 AI Help';
+    aiButton.style.cssText = [
+        'margin-left:8px', 'padding:6px 12px',
+        'background:#2d2d2d', 'color:#f5f5f5',
+        'border:1px solid rgba(255,255,255,0.15)', 'border-radius:4px',
+        'cursor:pointer', 'font-size:14px', 'font-weight:bold',
+        'transition:background-color 0.2s',
+        'display:inline-flex', 'align-items:center', 'justify-content:center',
+        'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif'
+    ].join(';');
+
+    aiButton.addEventListener('mouseover', function() {
+        aiButton.style.backgroundColor = '#3d3d3d';
+    });
+    aiButton.addEventListener('mouseout', function() {
+        aiButton.style.backgroundColor = '#2d2d2d';
+    });
+
+    aiButton.addEventListener('click', function() {
+        const elapsedMs = AI_HELPER.sessionStartMs !== null ? Date.now() - AI_HELPER.sessionStartMs : 0;
+        if (elapsedMs < AI_HELPER.settings.minHelpMinutes * 60000 && !aiHasAcceptedSolution()) {
+            showAiToast(`AI Helper: asking is locked for the first ${AI_HELPER.settings.minHelpMinutes} minutes — ${formatMinutesLabel(AI_HELPER.settings.minHelpMinutes * 60000 - elapsedMs)} left.`, 'error');
+            return;
+        }
+        const panel = ensureAiPanel();
+        toggleAiPanel(panel.style.display !== 'flex');
+    });
+
+    return aiButton;
+}
+
+// Reflect the "min minutes before asking for help" setting on the button
+function refreshAiAskButtonState() {
+    const aiButton = document.getElementById('yc-ai-button');
+    if (!aiButton) return;
+
+    const elapsedMs = AI_HELPER.sessionStartMs !== null && AI_HELPER.currentSlug ? Date.now() - AI_HELPER.sessionStartMs : null;
+    const minHelpMs = AI_HELPER.settings.minHelpMinutes * 60000;
+
+    if (elapsedMs !== null && elapsedMs < minHelpMs) {
+        aiButton.title = `Ask for help unlocks in ${formatMinutesLabel(minHelpMs - elapsedMs)} (setting: "Ask-after")`;
+        aiButton.style.opacity = '0.65';
+    } else {
+        aiButton.title = 'Ask the AI Helper for a nudge anytime';
+        aiButton.style.opacity = '1';
+    }
+}
+
+// ── Init & wiring ──────────────────────────────────────────────────
+
+loadAiSettings(() => {
+    updateAiSessionForUrl();
+});
+
+// Settings changed in the options page: storage.onChanged reaches content
+// scripts without any extra permission, so use it as the primary signal.
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'sync') return;
+    const AI_KEYS = ['aiEnabled', 'nudgeAtMinutes', 'deadlineAtMinutes', 'minHelpMinutes'];
+    const relevant = AI_KEYS.some((key) => Object.prototype.hasOwnProperty.call(changes, key));
+    if (!relevant) return;
+
+    reloadAiSessionSettings();
+});
+
+function reloadAiSessionSettings() {
+    loadAiSettings(() => {
+        removeAiNudgeOffer();
+        stopAiHelperTimers();
+        AI_HELPER.currentSlug = null;
+        updateAiSessionForUrl();
+        const panel = document.getElementById('yc-ai-panel');
+        if (panel && panel.style.display === 'flex') {
+            appendAiMessage('system', 'Settings updated — AI Helper timing refreshed.');
+        }
+        if (!AI_HELPER.settings.aiEnabled) {
+            toggleAiPanel(false);
+            const aiButton = document.getElementById('yc-ai-button');
+            if (aiButton) aiButton.remove();
+        }
+    });
+}
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request && request.action === 'settingsUpdated') {
+        reloadAiSessionSettings();
+        sendResponse({ success: true });
+        return false;
+    }
+});
+
+Object.assign(window.LeetCodeCodeSaver, {
+    aiHelper: {
+        state: AI_HELPER,
+        updateAiSessionForUrl,
+        resetAiSession,
+        aiHelperTick,
+        stopAiHelperTimers,
+        ensureAiButton,
+        ensureAiPanel,
+        appendAiMessage,
+        refreshAiAskButtonState,
+        removeAiNudgeOffer,
+        getProblemStatement,
+        collectAiContext
+    }
 });

@@ -242,6 +242,155 @@
         .footer-note a:hover {
             text-decoration: underline;
         }
+
+        select {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 13.5px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px var(--input-focus-glow);
+        }
+
+        select option {
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+
+        .card-separator {
+            height: 1px;
+            background: var(--border-color);
+            margin: 4px 0;
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: 0.03em;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 4px 0;
+        }
+
+        .checkbox-row input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .checkbox-row label {
+            text-transform: none;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .time-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        .time-grid .form-group {
+            min-width: 0;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 13.5px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px var(--input-focus-glow);
+        }
+
+        .concepts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .concept-row {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .concept-row input {
+            padding: 8px 12px;
+            font-size: 12.5px;
+        }
+
+        .concept-row select {
+            width: auto;
+            padding: 8px 10px;
+            font-size: 12.5px;
+        }
+
+        .concept-remove {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 18px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 4px 6px;
+            flex: 0 0 auto;
+        }
+
+        .concept-remove:hover {
+            color: #f87171;
+        }
+
+        .add-concept {
+            background-color: transparent;
+            border: 1px dashed var(--border-color);
+            color: var(--text-secondary);
+            font-size: 12.5px;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 8px;
+            flex: none !important;
+            width: 100%;
+        }
+
+        .add-concept:hover {
+            color: var(--text-primary);
+            border-color: var(--accent-blue);
+        }
+
+        .hint {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
@@ -287,6 +436,58 @@
         </div>
         
         <div id="status" class="status"></div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+        <div class="checkbox-row">
+            <input type="checkbox" id="aiEnabled">
+            <label for="aiEnabled">AI Helper (Socratic nudges while you solve)</label>
+        </div>
+
+        <div class="card-separator"></div>
+
+        <div class="form-group">
+            <label for="aiEndpoint">AI API Endpoint (OpenAI-compatible)</label>
+            <input type="text" id="aiEndpoint" placeholder="https://api.openai.com/v1/chat/completions">
+        </div>
+
+        <div class="form-group">
+            <label for="aiApiKey">AI API Key</label>
+            <div class="input-wrapper">
+                <input type="password" id="aiApiKey" placeholder="sk-...">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="aiModel">Model</label>
+            <input type="text" id="aiModel" placeholder="e.g., gpt-4o-mini, claude-3-5-haiku, llama3">
+        </div>
+
+        <div class="card-separator"></div>
+
+        <div class="card-title">Solve Timer</div>
+        <div class="time-grid">
+            <div class="form-group">
+                <label for="nudgeAtMinutes">Check-in (min)</label>
+                <input type="number" id="nudgeAtMinutes" min="1" max="180">
+            </div>
+            <div class="form-group">
+                <label for="deadlineAtMinutes">Time limit (min)</label>
+                <input type="number" id="deadlineAtMinutes" min="2" max="360">
+            </div>
+            <div class="form-group">
+                <label for="minHelpMinutes">Ask-after (min)</label>
+                <input type="number" id="minHelpMinutes" min="0" max="180">
+            </div>
+        </div>
+        <p class="hint">At the check-in time the AI reviews your direction and offers a nudge. At the time limit it suggests learning the solution. You can always decline.</p>
+
+        <div class="card-separator"></div>
+
+        <div class="card-title">Concept Experience Levels</div>
+        <p class="hint">Tell the AI what you know. It won't steer you toward concepts you haven't studied unless the problem truly requires them.</p>
+        <div class="concepts-list" id="conceptsList"></div>
+        <button id="addConcept" class="add-concept" type="button">+ Add concept</button>
     </div>
 
     <p class="footer-note">

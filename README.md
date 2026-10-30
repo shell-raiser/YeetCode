@@ -3,11 +3,13 @@
 
 A browser extension that allows you to save your LeetCode code and notes directly to a GitHub repository.
 
-## Features
 
-- **One-click saving & Auto-save**: Save your current code and notes to repo with a custom button next to LeetCode's submit button. Code is also automatically pushed when you submit on leetcode.
-- **GitHub Integration**: Securely store your solutions using your GitHub Personal Access Token, which you can set to only grant permission to the specific repo. (Unlike every other extension that asks complete Github access)
-- **Stable Per-Problem Files**: Each problem is saved in a seperate folder named after the question. You can set a parent folder if you want.
+## Features
+<img width="350" alt="extension options" src="https://github.com/user-attachments/assets/76e3affd-ea3c-40cb-aca6-1dd8afb0afdf" />
+
+- **One-click saving & Auto-save**: Save your current code and notes (along with the stopwatch time) to repo with a custom button next to LeetCode's submit button. Code is also automatically pushed when you submit on leetcode.
+- **GitHub Integration**: Securely store your solutions using your GitHub Personal Access Token, which you can set to only grant permission to the specific repo. (*Unlike every other extension that asks complete Github access*).
+- **Per-Problem Files**: Each problem is saved in a seperate folder named after the question. You can set a parent folder if you want.
 - **Configurable Repository**: Set your GitHub repository and branch in extension options
 - **Git History Friendly**: Repeated saves update the same code and notes files, with submission time in the commit message
 

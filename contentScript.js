@@ -6,21 +6,46 @@ let isSubmitting = false;
 const SAVER_SVG_URL = chrome.runtime.getURL('catcodeSmall.svg');
 const YEET_BUTTON_HTML = `<img src="${SAVER_SVG_URL}" style="height:14px;width:16px;margin-right:4px" alt=""> Yeet`;
 
+// Parse problem identity from a LeetCode pathname.
+// Contest problems live under /contest/<id>/problems/<slug> (also seen with the
+// plural /contests/<id>/problems/<slug> variant) and should be grouped in a
+// separate folder from regular /problems/<slug> pages.
+function parseProblemPath(pathname) {
+    const parts = pathname.split('/').filter((part) => part);
+
+    if (parts[0] === 'problems' && parts[1]) {
+        return { title: parts[1], subPath: '', isContest: false };
+    }
+
+    if ((parts[0] === 'contest' || parts[0] === 'contests') && parts[2] === 'problems' && parts[3]) {
+        return { title: parts[3], subPath: `contests/${parts[1]}`, isContest: true };
+    }
+
+    return null;
+}
+
 // Expose functions for testing
 window.LeetCodeCodeSaver = {
+    parseProblemPath,
     getProblemInfoFromUrl: function(urlString) {
         const url = new URL(urlString);
-        const pathParts = url.pathname.split('/');
-        let problemTitle = 'unknown-problem';
-        
-        if (pathParts.length >= 3 && pathParts[1] === 'problems') {
-            problemTitle = pathParts[2];
-        }
-        
+        const parsed = parseProblemPath(url.pathname);
+
         const timestamp = new Date().toISOString();
-        
+        if (parsed) {
+            return {
+                title: parsed.title,
+                subPath: parsed.subPath,
+                isContest: parsed.isContest,
+                timestamp: timestamp,
+                url: url.href
+            };
+        }
+
         return {
-            title: problemTitle,
+            title: 'unknown-problem',
+            subPath: '',
+            isContest: false,
             timestamp: timestamp,
             url: url.href
         };
@@ -370,28 +395,32 @@ async function getCodeAndLanguageFromPage() {
 
 function getProblemInfo() {
     const url = new URL(window.location.href);
-    const pathParts = url.pathname.split('/');
-    let problemTitle = 'unknown-problem';
-    
-    if (pathParts.length >= 3 && pathParts[1] === 'problems') {
-        problemTitle = pathParts[2];
+    const parsed = parseProblemPath(url.pathname);
+    let problemTitle = parsed ? parsed.title : 'unknown-problem';
+    let subPath = parsed ? parsed.subPath : '';
+
+    // On regular problem pages, the visible heading is a reliable title fallback.
+    // On contest pages we always trust the URL slug so each problem keeps its
+    // own folder under contests/<contest-id>/.
+    if (!subPath) {
+        const titleElement = document.querySelector('.title') ||
+                            document.querySelector('h1') ||
+                            document.querySelector('[data-cy="problem-title"]');
+
+        if (titleElement && titleElement.textContent.trim()) {
+            problemTitle = titleElement.textContent.trim()
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, '-')
+                          .replace(/^-+|-+$/g, '');
+        }
     }
-    
-    const titleElement = document.querySelector('.title') || 
-                        document.querySelector('h1') ||
-                        document.querySelector('[data-cy="problem-title"]');
-                        
-    if (titleElement && titleElement.textContent.trim()) {
-        problemTitle = titleElement.textContent.trim()
-                      .toLowerCase()
-                      .replace(/[^a-z0-9]+/g, '-')
-                      .replace(/^-+|-+$/g, '');
-    }
-    
+
     const timestamp = new Date().toISOString();
-    
+
     return {
         title: problemTitle,
+        subPath: subPath,
+        isContest: !!subPath,
         timestamp: timestamp,
         url: url.href
     };

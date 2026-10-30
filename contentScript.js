@@ -2,6 +2,11 @@
 // Handles UI modification, Monaco editor extraction, submission tracking, notes/timer scraping, and messaging
 
 let isSubmitting = false;
+let githubLookupTimer = null;
+let lastGitHubLookupKey = null;
+let githubLookupGeneration = 0;
+let autoImportAttemptedPath = null;
+let lastObservedProblemPath = window.location.pathname;
 
 const SAVER_SVG_URL = chrome.runtime.getURL('catcodeSmall.svg');
 const YEET_BUTTON_HTML = `<img src="${SAVER_SVG_URL}" style="height:14px;width:16px;margin-right:4px" alt=""> Yeet`;
@@ -40,6 +45,7 @@ window.LeetCodeCodeSaver = {
         if (parsed) {
             return {
                 title: parsed.title,
+                problemSlug: parsed.title,
                 subPath: parsed.subPath,
                 isContest: parsed.isContest,
                 contestFolder: parsed.contestFolder,
@@ -50,6 +56,7 @@ window.LeetCodeCodeSaver = {
 
         return {
             title: 'unknown-problem',
+            problemSlug: null,
             subPath: '',
             isContest: false,
             contestFolder: null,
@@ -123,9 +130,88 @@ function scanPageForSaverHooks() {
                 triggerAutoSave();
             }
         }
+
+        scheduleGitHubSolutionCheck();
     } catch (e) {
         // Ignore errors during DOM observation (e.g. during test teardown)
     }
+}
+
+function scheduleGitHubSolutionCheck() {
+    const pathname = window.location.pathname;
+    if (pathname !== lastObservedProblemPath) {
+        lastObservedProblemPath = pathname;
+        lastGitHubLookupKey = null;
+        autoImportAttemptedPath = null;
+        githubLookupGeneration++;
+        removeGitHubSolutionActions();
+    }
+
+    const parsed = parseProblemPath(pathname);
+    if (!parsed) {
+        clearTimeout(githubLookupTimer);
+        githubLookupTimer = null;
+        return;
+    }
+
+    clearTimeout(githubLookupTimer);
+    githubLookupTimer = setTimeout(checkGitHubSolutionForCurrentLanguage, 500);
+}
+
+async function checkGitHubSolutionForCurrentLanguage() {
+    const pathname = window.location.pathname;
+    const problemInfo = getProblemInfo();
+    if (problemInfo.title === 'unknown-problem') return;
+
+    let editor;
+    try {
+        editor = await getCodeAndLanguageFromPage();
+    } catch (error) {
+        return;
+    }
+
+    if (window.location.pathname !== pathname) return;
+    if (!editor.languageId || editor.languageId === 'txt') return;
+    const lookupKey = `${pathname}:${editor.languageId}`;
+    if (lookupKey === lastGitHubLookupKey) return;
+    lastGitHubLookupKey = lookupKey;
+    removeGitHubSolutionActions();
+    const generation = ++githubLookupGeneration;
+    const allowAutoImport = autoImportAttemptedPath !== window.location.pathname;
+    autoImportAttemptedPath = window.location.pathname;
+
+    chrome.runtime.sendMessage({
+        action: 'checkGitHubSolution',
+        problemInfo,
+        languageId: editor.languageId,
+        editorCode: editor.code,
+        allowAutoImport
+    }, function(response) {
+        if (generation !== githubLookupGeneration) return;
+        if (chrome.runtime.lastError) {
+            showStatusMessage(`GitHub lookup failed: ${chrome.runtime.lastError.message}`, 'error');
+            return;
+        }
+        if (!response || !response.success) {
+            const error = response && response.error ? response.error : 'Unknown background error';
+            showStatusMessage(`GitHub lookup failed: ${error}`, 'error');
+            return;
+        }
+
+        const result = response.result;
+        if (!result.configured) return;
+        if (!result.found) {
+            showStatusMessage(`No saved solution found for ${getLanguageLabel(editor.languageId)}.`, 'error');
+            return;
+        }
+
+        showGitHubSolutionActions(result);
+        if (result.autoImported) {
+            showStatusMessage(`Imported the ${getLanguageLabel(result.languageId)} solution from GitHub.`, 'success');
+        } else if (result.autoImportError) {
+            showStatusMessage(`Automatic import skipped: ${result.autoImportError}`, 'error');
+        }
+    });
 }
 
 // Start observer
@@ -434,6 +520,7 @@ function getProblemInfo() {
 
     return {
         title: problemTitle,
+        problemSlug: parsed ? parsed.title : null,
         subPath: subPath,
         isContest: parsed ? parsed.isContest : false,
         contestFolder: parsed ? parsed.contestFolder : null,
@@ -648,35 +735,117 @@ function getTimerValue() {
 }
 
 function showGitHubLink(result) {
-    const ghUrl = `https://github.com/${result.repo}/blob/${result.branch}/${result.codeFilePath}`;
-    const existing = document.getElementById('leetcode-github-link');
-    if (existing) existing.remove();
-    
-    const link = document.createElement('a');
-    link.id = 'leetcode-github-link';
-    link.href = ghUrl;
-    link.target = '_blank';
-    link.textContent = 'View on GitHub';
-    link.style.marginLeft = '8px';
-    link.style.padding = '6px 12px';
-    link.style.backgroundColor = '#2ea44f';
-    link.style.color = '#ffffff';
-    link.style.border = 'none';
-    link.style.borderRadius = '4px';
-    link.style.cursor = 'pointer';
-    link.style.fontSize = '14px';
-    link.style.fontWeight = 'bold';
-    link.style.textDecoration = 'none';
-    link.style.display = 'inline-flex';
-    link.style.alignItems = 'center';
-    link.style.justifyContent = 'center';
-    link.style.alignSelf = 'center';
-    
+    showGitHubSolutionActions(result);
+}
+
+function getLanguageLabel(languageId) {
+    const labels = {
+        cpp: 'C++',
+        csharp: 'C#',
+        javascript: 'JavaScript',
+        python: 'Python',
+        python3: 'Python 3',
+        golang: 'Go'
+    };
+    return labels[languageId] || languageId;
+}
+
+function styleGitHubAction(element, backgroundColor) {
+    element.style.marginLeft = '8px';
+    element.style.padding = '6px 12px';
+    element.style.backgroundColor = backgroundColor;
+    element.style.color = '#ffffff';
+    element.style.border = 'none';
+    element.style.borderRadius = '4px';
+    element.style.cursor = 'pointer';
+    element.style.fontSize = '12px';
+    element.style.fontWeight = 'bold';
+    element.style.textDecoration = 'none';
+    element.style.display = 'inline-flex';
+    element.style.alignItems = 'center';
+    element.style.justifyContent = 'center';
+    element.style.alignSelf = 'center';
+}
+
+function showGitHubSolutionActions(result) {
+    removeGitHubSolutionActions();
+
+    const path = result.codeFilePath.split('/').map(encodeURIComponent).join('/');
+    const branch = result.branch.split('/').map(encodeURIComponent).join('/');
+    const ghUrl = `https://github.com/${result.repo}/blob/${branch}/${path}`;
+
+    const openLink = document.createElement('a');
+    openLink.id = 'leetcode-open-github';
+    openLink.href = ghUrl;
+    openLink.target = '_blank';
+    openLink.rel = 'noopener noreferrer';
+    openLink.textContent = 'Open in GitHub';
+    styleGitHubAction(openLink, '#238636');
+
+    const importButton = document.createElement('button');
+    importButton.id = 'leetcode-import-github';
+    importButton.type = 'button';
+    importButton.textContent = 'Import from GitHub';
+    importButton.title = 'Replace the current LeetCode editor contents with this saved solution';
+    styleGitHubAction(importButton, '#0969da');
+    importButton.addEventListener('click', () => importGitHubSolution(importButton));
+
     const submitButton = findSubmitButton();
     if (submitButton) {
-        const submitWrapper = submitButton.parentNode.parentNode;
-        const flexContainer = submitWrapper.parentNode;
-        flexContainer.appendChild(link);
+        const submitWrapper = submitButton.parentNode && submitButton.parentNode.parentNode;
+        const flexContainer = submitWrapper && submitWrapper.parentNode;
+        if (flexContainer) {
+            flexContainer.append(openLink, importButton);
+        }
+    }
+}
+
+function removeGitHubSolutionActions() {
+    const actionIds = [
+        'leetcode-open-github',
+        'leetcode-import-github'
+    ];
+    for (const id of actionIds) {
+        const existing = document.getElementById(id);
+        if (existing) existing.remove();
+    }
+}
+
+async function importGitHubSolution(importButton) {
+    importButton.disabled = true;
+    try {
+        const { languageId } = await getCodeAndLanguageFromPage();
+        if (!languageId || languageId === 'txt') {
+            throw new Error('Could not detect the selected LeetCode language.');
+        }
+
+        chrome.runtime.sendMessage({
+            action: 'importFromGitHub',
+            problemInfo: getProblemInfo(),
+            languageId
+        }, function(response) {
+            importButton.disabled = false;
+            if (chrome.runtime.lastError) {
+                showStatusMessage(`Import failed: ${chrome.runtime.lastError.message}`, 'error');
+                return;
+            }
+            if (!response || !response.success) {
+                const error = response && response.error ? response.error : 'Unknown background error';
+                showStatusMessage(`Import failed: ${error}`, 'error');
+                return;
+            }
+
+            if (!response.result.found) {
+                showStatusMessage(`No saved solution found for ${getLanguageLabel(languageId)}.`, 'error');
+                return;
+            }
+
+            showGitHubSolutionActions(response.result);
+            showStatusMessage(`Imported the ${getLanguageLabel(languageId)} solution from GitHub.`, 'success');
+        });
+    } catch (error) {
+        importButton.disabled = false;
+        showStatusMessage(`Import failed: ${error.message}`, 'error');
     }
 }
 
@@ -732,5 +901,8 @@ Object.assign(window.LeetCodeCodeSaver, {
     getTimerValue,
     scanPageForSaverHooks,
     showGitHubLink,
+    showGitHubSolutionActions,
+    checkGitHubSolutionForCurrentLanguage,
+    importGitHubSolution,
     getProblemInfo
 });

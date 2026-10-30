@@ -29,7 +29,7 @@ global.chrome = {
       })
     },
     sendMessage: jest.fn((message, callback) => {
-      const sender = {};
+      const sender = { tab: { id: 123 } };
       const sendResponse = (response) => {
         if (callback) callback(response);
       };
@@ -40,6 +40,9 @@ global.chrome = {
     getURL: jest.fn((path) => `chrome-extension://mock-extension/${path}`),
     onInstalled: { addListener: jest.fn() },
     onUpdateAvailable: { addListener: jest.fn() }
+  },
+  scripting: {
+    executeScript: jest.fn(() => Promise.resolve([{ result: { success: true } }]))
   }
 };
 
@@ -61,6 +64,7 @@ describe('YeetCode Extension', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     window.localStorage.clear();
+    window.history.replaceState({}, '', '/');
     delete window.monaco;
     const textarea = document.querySelector('textarea');
     if (textarea) textarea.value = "console.log('test');";
@@ -73,6 +77,7 @@ describe('YeetCode Extension', () => {
     test('should extract problem title from URL', () => {
       const info = window.LeetCodeCodeSaver.getProblemInfoFromUrl('https://leetcode.com/problems/two-sum/');
       expect(info.title).toBe('two-sum');
+      expect(info.problemSlug).toBe('two-sum');
       expect(info.subPath).toBe('');
       expect(info.isContest).toBe(false);
       expect(info.timestamp).toMatch(/\d{4}-\d{2}-\d{2}/);
@@ -111,6 +116,7 @@ describe('YeetCode Extension', () => {
       const info = window.LeetCodeCodeSaver.getProblemInfoFromUrl('https://leetcode.com/contest/weekly-contest-500/problems/two-sum/');
       expect(info.title).toBe('two-sum');
       expect(info.contestFolder).toBe('weekly-contest-500');
+      expect(info.problemSlug).toBe('two-sum');
       expect(info.url).toBe('https://leetcode.com/contest/weekly-contest-500/problems/two-sum/');
     });
 
@@ -275,6 +281,343 @@ describe('YeetCode Extension', () => {
       await expect(extraction).resolves.toEqual({
         code: 'return true;',
         languageId: 'javascript'
+      });
+    });
+
+    test('should show GitHub, open, and import actions for a saved solution', () => {
+      document.body.innerHTML = `
+        <div class="flex">
+          <div class="group"><div><button data-testid="judge-button">Submit</button></div></div>
+        </div>
+      `;
+
+      window.LeetCodeCodeSaver.showGitHubSolutionActions({
+        repo: 'owner/repo',
+        branch: 'main',
+        codeFilePath: 'two-sum/two-sum.py'
+      });
+
+      const openLink = document.getElementById('leetcode-open-github');
+      expect(openLink.textContent).toBe('Open in GitHub');
+      expect(openLink.target).toBe('_blank');
+      expect(openLink.href).toContain('/blob/main/two-sum/two-sum.py');
+      expect(document.getElementById('leetcode-github-link')).toBeNull();
+      expect(document.getElementById('leetcode-import-github').textContent).toBe('Import from GitHub');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────
+  // GitHub solution lookup and import
+  // ─────────────────────────────────────────────────────
+  describe('Background GitHub solution lookup and import', () => {
+    const problemInfo = {
+      title: 'two-sum',
+      isContest: false,
+      timestamp: '2026-01-01T00:00:00-000Z',
+      url: 'https://leetcode.com/problems/two-sum/'
+    };
+
+    test('should check only the currently selected language path', (done) => {
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: () => Promise.resolve({ message: 'Not Found' })
+      });
+
+      chrome.runtime.sendMessage({
+        action: 'checkGitHubSolution',
+        problemInfo,
+        languageId: 'python3',
+        editorCode: 'class Solution:\n    pass'
+      }, (response) => {
+        try {
+          expect(response.success).toBe(true);
+          expect(response.result.found).toBe(false);
+          expect(fetch.mock.calls[0][0]).toContain('/contents/two-sum/two-sum.py?ref=main');
+          expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
+          done();
+        } catch (error) { done(error); }
+      });
+    });
+
+    test('should import the selected language solution into the editor', (done) => {
+      const solution = '# café\nclass Solution:\n    pass\n';
+      window.history.replaceState({}, '', '/problems/two-sum/');
+      let editorCode = 'existing code';
+      const model = {
+        getLanguageId: () => 'python3',
+        getValue: () => editorCode,
+        setValue: (code) => { editorCode = code; }
+      };
+      window.monaco = {
+        editor: {
+          getEditors: () => [{
+            getModel: () => model,
+            getValue: () => editorCode,
+            setValue: (code) => { editorCode = code; }
+          }]
+        }
+      };
+      chrome.scripting.executeScript.mockImplementationOnce(({ func, args }) => {
+        return Promise.resolve([{ result: func(...args) }]);
+      });
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          content: btoa(unescape(encodeURIComponent(solution))),
+          path: 'two-sum/two-sum.py'
+        })
+      });
+
+      chrome.runtime.sendMessage({
+        action: 'importFromGitHub',
+        problemInfo,
+        languageId: 'python3'
+      }, (response) => {
+        try {
+          expect(response.success).toBe(true);
+          expect(response.result.found).toBe(true);
+          expect(chrome.scripting.executeScript).toHaveBeenCalledWith(expect.objectContaining({
+            target: { tabId: 123 },
+            world: 'MAIN',
+            args: [solution, 'python3', null, '/problems/two-sum/']
+          }));
+          expect(editorCode).toBe(solution);
+          window.history.replaceState({}, '', '/');
+          done();
+        } catch (error) { done(error); }
+      });
+    });
+
+    test('should not import when the selected language solution is missing', (done) => {
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: () => Promise.resolve({ message: 'Not Found' })
+      });
+
+      chrome.runtime.sendMessage({
+        action: 'importFromGitHub',
+        problemInfo,
+        languageId: 'javascript'
+      }, (response) => {
+        try {
+          expect(response.success).toBe(true);
+          expect(response.result.found).toBe(false);
+          expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
+          expect(fetch.mock.calls[0][0]).toContain('/contents/two-sum/two-sum.js?ref=main');
+          done();
+        } catch (error) { done(error); }
+      });
+    });
+
+    test('should check contest solutions under the configured parent and contest folders', (done) => {
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: () => Promise.resolve({ message: 'Not Found' })
+      });
+      chrome.storage.sync.get.mockImplementationOnce((keys, callback) => {
+        callback({
+          githubToken: 'ghp_mock',
+          githubRepo: 'owner/repo',
+          githubBranch: 'main',
+          githubFolder: 'solutions',
+          saveNotesAndTimer: true,
+          autoImportFromGitHub: false
+        });
+      });
+
+      chrome.runtime.sendMessage({
+        action: 'checkGitHubSolution',
+        problemInfo: {
+          ...problemInfo,
+          isContest: true,
+          contestFolder: 'weekly-contest-500',
+          subPath: 'contests/weekly-contest-500'
+        },
+        languageId: 'python3',
+        editorCode: 'class Solution:\n    pass'
+      }, (response) => {
+        try {
+          expect(response.success).toBe(true);
+          expect(fetch.mock.calls[0][0]).toContain(
+            '/contents/solutions/contests/weekly-contest-500/two-sum/two-sum.py?ref=main'
+          );
+          done();
+        } catch (error) { done(error); }
+      });
+    });
+
+    test('should auto-import only when the editor still matches the LeetCode starter', (done) => {
+      const starter = 'class Solution:\n    pass';
+      window.history.replaceState({}, '', '/problems/two-sum/');
+      let editorCode = starter;
+      const model = {
+        getLanguageId: () => 'python3',
+        getValue: () => editorCode,
+        setValue: (code) => { editorCode = code; }
+      };
+      window.monaco = {
+        editor: {
+          getEditors: () => [{
+            getModel: () => model,
+            getValue: () => editorCode,
+            setValue: (code) => { editorCode = code; }
+          }]
+        }
+      };
+      chrome.scripting.executeScript.mockImplementationOnce(({ func, args }) => {
+        return Promise.resolve([{ result: func(...args) }]);
+      });
+      fetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ content: btoa('saved solution'), path: 'two-sum/two-sum.py' })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            data: { question: { codeSnippets: [{ langSlug: 'python3', code: starter }] } }
+          })
+        });
+      chrome.storage.sync.get.mockImplementationOnce((keys, callback) => {
+        callback({
+          githubToken: 'ghp_mock',
+          githubRepo: 'owner/repo',
+          githubBranch: 'main',
+          githubFolder: '',
+          saveNotesAndTimer: true,
+          autoImportFromGitHub: true
+        });
+      });
+
+      chrome.runtime.sendMessage({
+        action: 'checkGitHubSolution',
+        problemInfo,
+        languageId: 'python3',
+        editorCode: starter,
+        allowAutoImport: true
+      }, (response) => {
+        try {
+          expect(response.success).toBe(true);
+          expect(response.result.autoImported).toBe(true);
+          expect(chrome.scripting.executeScript).toHaveBeenCalledWith(expect.objectContaining({
+            args: ['saved solution', 'python3', starter, '/problems/two-sum/']
+          }));
+          expect(editorCode).toBe('saved solution');
+          window.history.replaceState({}, '', '/');
+          done();
+        } catch (error) { done(error); }
+      });
+    });
+
+    test('should not auto-import over code that differs from the LeetCode starter', (done) => {
+      const starter = 'class Solution:\n    pass';
+      fetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ content: btoa('saved solution'), path: 'two-sum/two-sum.py' })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            data: { question: { codeSnippets: [{ langSlug: 'python3', code: starter }] } }
+          })
+        });
+      chrome.storage.sync.get.mockImplementationOnce((keys, callback) => {
+        callback({
+          githubToken: 'ghp_mock',
+          githubRepo: 'owner/repo',
+          githubBranch: 'main',
+          githubFolder: '',
+          saveNotesAndTimer: true,
+          autoImportFromGitHub: true
+        });
+      });
+
+      chrome.runtime.sendMessage({
+        action: 'checkGitHubSolution',
+        problemInfo,
+        languageId: 'python3',
+        editorCode: `${starter}\n    # user started editing`,
+        allowAutoImport: true
+      }, (response) => {
+        try {
+          expect(response.success).toBe(true);
+          expect(response.result.autoImported).toBe(false);
+          expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
+          done();
+        } catch (error) { done(error); }
+      });
+    });
+
+    test('should leave newly edited code unchanged if it changes during lookup', (done) => {
+      const starter = 'class Solution:\n    pass';
+      window.history.replaceState({}, '', '/problems/two-sum/');
+      let editorCode = starter;
+      const model = {
+        getLanguageId: () => 'python3',
+        getValue: () => editorCode,
+        setValue: (code) => { editorCode = code; }
+      };
+      window.monaco = {
+        editor: {
+          getEditors: () => [{
+            getModel: () => model,
+            getValue: () => editorCode,
+            setValue: (code) => { editorCode = code; }
+          }]
+        }
+      };
+      chrome.scripting.executeScript.mockImplementationOnce(({ func, args }) => {
+        editorCode = 'new user code';
+        return Promise.resolve([{ result: func(...args) }]);
+      });
+      fetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ content: btoa('saved solution'), path: 'two-sum/two-sum.py' })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            data: { question: { codeSnippets: [{ langSlug: 'python3', code: starter }] } }
+          })
+        });
+      chrome.storage.sync.get.mockImplementationOnce((keys, callback) => {
+        callback({
+          githubToken: 'ghp_mock',
+          githubRepo: 'owner/repo',
+          githubBranch: 'main',
+          githubFolder: '',
+          saveNotesAndTimer: true,
+          autoImportFromGitHub: true
+        });
+      });
+
+      chrome.runtime.sendMessage({
+        action: 'checkGitHubSolution',
+        problemInfo,
+        languageId: 'python3',
+        editorCode: starter,
+        allowAutoImport: true
+      }, (response) => {
+        try {
+          expect(response.success).toBe(true);
+          expect(response.result.autoImported).toBe(false);
+          expect(response.result.autoImportError).toContain('editor changed');
+          expect(editorCode).toBe('new user code');
+          window.history.replaceState({}, '', '/');
+          done();
+        } catch (error) { done(error); }
       });
     });
   });

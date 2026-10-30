@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const githubBranchInput = document.getElementById('githubBranch');
     const githubFolderInput = document.getElementById('githubFolder');
     const saveNotesAndTimerInput = document.getElementById('saveNotesAndTimer');
+    const autoImportFromGitHubInput = document.getElementById('autoImportFromGitHub');
     const toggleToken = document.getElementById('toggleToken');
     
     const testButton = document.getElementById('test');
@@ -16,13 +17,15 @@ document.addEventListener('DOMContentLoaded', function() {
         'githubRepo',
         'githubBranch',
         'githubFolder',
-        'saveNotesAndTimer'
+        'saveNotesAndTimer',
+        'autoImportFromGitHub'
     ], function(items) {
         if (items.githubToken) githubTokenInput.value = items.githubToken;
         if (items.githubRepo) githubRepoInput.value = items.githubRepo;
         if (items.githubBranch) githubBranchInput.value = items.githubBranch;
         if (items.githubFolder) githubFolderInput.value = items.githubFolder;
         saveNotesAndTimerInput.checked = items.saveNotesAndTimer !== undefined ? items.saveNotesAndTimer : true;
+        autoImportFromGitHubInput.checked = items.autoImportFromGitHub === true;
     });
 
     // Toggle token password visibility
@@ -103,7 +106,8 @@ document.addEventListener('DOMContentLoaded', function() {
             githubRepo: repo,
             githubBranch: branch,
             githubFolder: folder,
-            saveNotesAndTimer: saveNotesAndTimerInput.checked
+            saveNotesAndTimer: saveNotesAndTimerInput.checked,
+            autoImportFromGitHub: autoImportFromGitHubInput.checked
         }, function() {
             saveButton.disabled = false;
             showStatus('Settings saved successfully!', 'success');

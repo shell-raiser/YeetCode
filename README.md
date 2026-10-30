@@ -11,6 +11,7 @@ A browser extension that allows you to save your LeetCode code and notes directl
 - **GitHub Integration**: Securely store your solutions using your GitHub Personal Access Token, which you can set to only grant permission to the specific repo. (*Unlike every other extension that asks complete Github access*).
 - **Per-Problem Files**: Each problem is saved in a seperate folder named after the question. You can set a parent folder if you want.
 - **Contest Support**: Contest problems are saved in their own section of the repo, e.g. `contests/weekly-contest-500/two-sum/`, so they don't clutter your regular problem folders. The save button also appears on contest pages.
+- **GitHub Solution Lookup & Import**: Check whether a solution exists for the selected language, open it on GitHub, or import it into LeetCode. Optional automatic import only replaces an untouched LeetCode starter template; manual import always replaces the editor contents.
 - **Note Rescue**: Notes written inside LeetCode are picked up from the page when the notes pane is open; if not, the extension fetches your private notes for that problem directly from LeetCode's API as long as you are logged in there.
 - **Configurable Repository**: Set your GitHub repository and branch in extension options
 - **Git History Friendly**: Repeated saves update the same code and notes files, with submission time in the commit message
@@ -35,11 +36,13 @@ A browser extension that allows you to save your LeetCode code and notes directl
    - **GitHub Personal Access Token**: Generate one at https://github.com/settings/tokens (needs `repo` scope)
    - **GitHub Repository**: In format `owner/repo` (e.g., `username/leetcode-solutions`)
    - **Branch**: Default is `main` (change if you use a different branch)
+   - **Automatically import a saved solution**: Optional; imports only when the editor is blank or still matches LeetCode's starter template. The manual import action is always available when a matching solution exists.
 4. Click "Save Settings"
 5. On the LeetCode problem page, you'll see a new "Yeet" button next to the submit button
 6. Write your code/notes in the editor
 7. Click "Save to GitHub" to save your current work
 8. Check your GitHub repository for files like `two-sum/two-sum.py` and `two-sum/two-sum-notes.md` (contest problems land under `contests/<contest-id>/...` instead)
+9. When a matching solution exists for the selected editor language, use **Open in GitHub** to view it or **Import from GitHub** to replace the editor contents with it.
 
 ## Architecture
 

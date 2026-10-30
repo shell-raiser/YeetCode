@@ -12,7 +12,8 @@ global.chrome = {
           githubRepo: 'saved/repo',
           githubBranch: 'saved-branch',
           githubFolder: 'leetcode',
-          saveNotesAndTimer: true
+          saveNotesAndTimer: true,
+          autoImportFromGitHub: true
         });
       }),
       set: jest.fn((items, callback) => {
@@ -44,6 +45,7 @@ describe('Options Page', () => {
       <input type="text" id="githubBranch" value="main">
       <input type="text" id="githubFolder">
       <input type="checkbox" id="saveNotesAndTimer" checked>
+      <input type="checkbox" id="autoImportFromGitHub">
       <button id="test">Test Connection</button>
       <button id="save">Save Settings</button>
       <div id="status"></div>
@@ -62,7 +64,8 @@ describe('Options Page', () => {
       'githubRepo',
       'githubBranch',
       'githubFolder',
-      'saveNotesAndTimer'
+      'saveNotesAndTimer',
+      'autoImportFromGitHub'
     ], expect.any(Function));
 
     expect(document.getElementById('githubToken').value).toBe('ghp_savedtoken');
@@ -70,6 +73,7 @@ describe('Options Page', () => {
     expect(document.getElementById('githubBranch').value).toBe('saved-branch');
     expect(document.getElementById('githubFolder').value).toBe('leetcode');
     expect(document.getElementById('saveNotesAndTimer').checked).toBe(true);
+    expect(document.getElementById('autoImportFromGitHub').checked).toBe(true);
   });
 
   test('should default saveNotesAndTimer to false when stored that way', () => {
@@ -79,6 +83,7 @@ describe('Options Page', () => {
     document.dispatchEvent(new Event('DOMContentLoaded'));
 
     expect(document.getElementById('saveNotesAndTimer').checked).toBe(false);
+    expect(document.getElementById('autoImportFromGitHub').checked).toBe(false);
   });
 
   // ─────────────────────────────────────────────────────
@@ -106,6 +111,7 @@ describe('Options Page', () => {
     const repoInput = document.getElementById('githubRepo');
     const branchInput = document.getElementById('githubBranch');
     const notesToggle = document.getElementById('saveNotesAndTimer');
+    const autoImportToggle = document.getElementById('autoImportFromGitHub');
     const saveButton = document.getElementById('save');
     const statusDiv = document.getElementById('status');
 
@@ -114,6 +120,7 @@ describe('Options Page', () => {
     branchInput.value = 'prod';
     document.getElementById('githubFolder').value = '';
     notesToggle.checked = false;
+    autoImportToggle.checked = true;
 
     saveButton.dispatchEvent(new Event('click'));
 
@@ -122,7 +129,8 @@ describe('Options Page', () => {
       githubRepo: 'new/repo',
       githubBranch: 'prod',
       githubFolder: '',
-      saveNotesAndTimer: false
+      saveNotesAndTimer: false,
+      autoImportFromGitHub: true
     }, expect.any(Function));
 
     expect(statusDiv.textContent).toBe('Settings saved successfully!');

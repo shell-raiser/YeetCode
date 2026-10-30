@@ -212,49 +212,82 @@ function buildNotesMarkdown(problemInfo, notesText, timerValue, languageId) {
     return lines.join('\n');
 }
 
+// Fetch the user's private LeetCode notes via the GraphQL API as a fallback,
+// because the notes editor is not always mounted (e.g. when the Notes pane was
+// never opened the DOM scraping finds nothing).
+async function fetchLeetCodeNotes(titleSlug) {
+    try {
+        const response = await fetch('https://leetcode.com/graphql/', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                operationName: 'questionNote',
+                query: 'query questionNote($titleSlug: String!) {\n  question(titleSlug: $titleSlug) {\n    questionId\n    note\n  }\n}' +
+                    '\n    ',
+                variables: { titleSlug: titleSlug }
+            })
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        const note = data && data.data && data.data.question && data.data.question.note;
+        return (typeof note === 'string' && note.trim()) ? note.trim() : null;
+    } catch (e) {
+        return null;
+    }
+}
+
 // Save solution to GitHub
 async function handleSaveToGitHub(code, problemInfo, languageId, notesText, timerValue) {
     const settings = await getExtensionSettings();
-    
+
     if (!settings.token || !settings.repo) {
         throw new Error('GitHub token or repository not configured in settings.');
     }
-    
+
     // Format stable per-problem paths so repeated submissions update the same files.
     const sanitizedTitle = problemInfo.title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '') || 'unknown-problem';
-    
-    // Handle contest problems - organize in contests/<contest-name>/<problem-title>
-    const folderPrefix = settings.folder ? `${settings.folder}/` : '';
-    let codeFilePath;
-    let notesFilePath;
-    
-    if (problemInfo.contestFolder) {
-        const sanitizedContest = problemInfo.contestFolder
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '');
-        const ext = getExtensionForLanguage(languageId);
-        codeFilePath = `${folderPrefix}contests/${sanitizedContest}/${sanitizedTitle}${ext}`;
-        notesFilePath = `${folderPrefix}contests/${sanitizedContest}/${sanitizedTitle}-notes.md`;
-    } else {
-        const ext = getExtensionForLanguage(languageId);
-        codeFilePath = `${folderPrefix}${sanitizedTitle}/${sanitizedTitle}${ext}`;
-        notesFilePath = `${folderPrefix}${sanitizedTitle}/${sanitizedTitle}-notes.md`;
+
+    // Contest IDs and problem slugs are kept as separate path components.
+    const contestFolder = problemInfo.isContest
+        ? problemInfo.contestFolder ||
+          (typeof problemInfo.subPath === 'string' ? problemInfo.subPath.split('/').filter(Boolean).pop() : '')
+        : '';
+    const sanitizedContestFolder = contestFolder
+        ? contestFolder.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+        : '';
+    const problemDir = sanitizedContestFolder
+        ? `contests/${sanitizedContestFolder}/${sanitizedTitle}`
+        : sanitizedTitle;
+
+    // Fetch private notes when the notes editor was not mounted on the page.
+    let finalNotesText = notesText || null;
+    if (settings.saveNotesAndTimer && !finalNotesText && problemInfo.title) {
+        finalNotesText = await fetchLeetCodeNotes(problemInfo.title);
     }
-    
+
+    // --- Commit 1: Code file ---
+    const ext = getExtensionForLanguage(languageId);
+    const folderPrefix = settings.folder ? `${settings.folder}/` : '';
+    const codeFilePath = `${folderPrefix}${problemDir}/${sanitizedTitle}${ext}`;
     const codeCommitMessage = `Save LeetCode solution: ${problemInfo.title} (${problemInfo.timestamp || new Date().toISOString()})`;
-    
+
     const codeResult = await commitFileToGitHub(settings, codeFilePath, code, codeCommitMessage);
-    
+
     // --- Commit 2: Notes/Timer markdown file (optional) ---
     let notesResult = null;
+    let notesFilePath = null;
     if (settings.saveNotesAndTimer) {
-        const notesMarkdown = buildNotesMarkdown(problemInfo, notesText, timerValue, languageId);
+        const notesMarkdown = buildNotesMarkdown(problemInfo, finalNotesText, timerValue, languageId);
+        notesFilePath = `${folderPrefix}${problemDir}/${sanitizedTitle}-notes.md`;
         const notesCommitMessage = `Save notes for: ${problemInfo.title} (${problemInfo.timestamp || new Date().toISOString()})`;
-        
+
         notesResult = await commitFileToGitHub(settings, notesFilePath, notesMarkdown, notesCommitMessage);
     }
     
@@ -263,7 +296,7 @@ async function handleSaveToGitHub(code, problemInfo, languageId, notesText, time
         notes: notesResult,
         repo: settings.repo,
         branch: settings.branch,
-        codeFilePath: codeFilePath,
-        notesFilePath: notesFilePath
+        codeFilePath,
+        notesFilePath
     };
 }

@@ -6,28 +6,55 @@ let isSubmitting = false;
 const SAVER_SVG_URL = chrome.runtime.getURL('catcodeSmall.svg');
 const YEET_BUTTON_HTML = `<img src="${SAVER_SVG_URL}" style="height:14px;width:16px;margin-right:4px" alt=""> Yeet`;
 
+// Parse problem identity from a LeetCode pathname.
+// Contest problems live under /contest/<id>/problems/<slug> (also seen with the
+// plural /contests/<id>/problems/<slug> variant) and should be grouped in a
+// separate folder from regular /problems/<slug> pages.
+function parseProblemPath(pathname) {
+    const parts = pathname.split('/').filter((part) => part);
+
+    if (parts[0] === 'problems' && parts[1]) {
+        return { title: parts[1], subPath: '', isContest: false, contestFolder: null };
+    }
+
+    if ((parts[0] === 'contest' || parts[0] === 'contests') && parts[2] === 'problems' && parts[3]) {
+        return {
+            title: parts[3],
+            subPath: `contests/${parts[1]}`,
+            isContest: true,
+            contestFolder: parts[1]
+        };
+    }
+
+    return null;
+}
+
 // Expose functions for testing
 window.LeetCodeCodeSaver = {
+    parseProblemPath,
     getProblemInfoFromUrl: function(urlString) {
         const url = new URL(urlString);
-        const pathParts = url.pathname.split('/');
-        let problemTitle = 'unknown-problem';
-        let contestFolder = null;
-        
-        if (pathParts.length >= 3 && pathParts[1] === 'problems') {
-            problemTitle = pathParts[2];
-        } else if (pathParts.length >= 5 && pathParts[1] === 'contest' && pathParts[3] === 'problems') {
-            contestFolder = pathParts[2];
-            problemTitle = pathParts[4];
-        }
-        
+        const parsed = parseProblemPath(url.pathname);
+
         const timestamp = new Date().toISOString();
-        
+        if (parsed) {
+            return {
+                title: parsed.title,
+                subPath: parsed.subPath,
+                isContest: parsed.isContest,
+                contestFolder: parsed.contestFolder,
+                timestamp: timestamp,
+                url: url.href
+            };
+        }
+
         return {
-            title: problemTitle,
+            title: 'unknown-problem',
+            subPath: '',
+            isContest: false,
+            contestFolder: null,
             timestamp: timestamp,
-            url: url.href,
-            contestFolder: contestFolder
+            url: url.href
         };
     },
     getCodeFromEditor: function() {
@@ -383,38 +410,35 @@ async function getCodeAndLanguageFromPage() {
 
 function getProblemInfo() {
     const url = new URL(window.location.href);
-    const pathParts = url.pathname.split('/');
-    let problemTitle = 'unknown-problem';
-    let contestFolder = null;
-    
-    if (pathParts.length >= 3 && pathParts[1] === 'problems') {
-        problemTitle = pathParts[2];
-    } else if (pathParts.length >= 5 && pathParts[1] === 'contest' && pathParts[3] === 'problems') {
-        contestFolder = pathParts[2];
-        problemTitle = pathParts[4];
-    }
-    
-    const titleElement = document.querySelector('.title') || 
-                        document.querySelector('h1') ||
-                        document.querySelector('[data-cy="problem-title"]');
-                        
-    if (titleElement && titleElement.textContent.trim()) {
-        const extractedTitle = titleElement.textContent.trim()
-                      .toLowerCase()
-                      .replace(/[^a-z0-9]+/g, '-')
-                      .replace(/^-+|-+$/g, '');
-        if (extractedTitle) {
-            problemTitle = extractedTitle;
+    const parsed = parseProblemPath(url.pathname);
+    let problemTitle = parsed ? parsed.title : 'unknown-problem';
+    const subPath = parsed ? parsed.subPath : '';
+
+    if (!parsed || !parsed.isContest) {
+        const titleElement = document.querySelector('.title') ||
+                            document.querySelector('h1') ||
+                            document.querySelector('[data-cy="problem-title"]');
+
+        if (titleElement && titleElement.textContent.trim()) {
+            const headingSlug = titleElement.textContent.trim()
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, '-')
+                          .replace(/^-+|-+$/g, '');
+            if (headingSlug) {
+                problemTitle = headingSlug;
+            }
         }
     }
-    
+
     const timestamp = new Date().toISOString();
-    
+
     return {
         title: problemTitle,
+        subPath: subPath,
+        isContest: parsed ? parsed.isContest : false,
+        contestFolder: parsed ? parsed.contestFolder : null,
         timestamp: timestamp,
-        url: url.href,
-        contestFolder: contestFolder
+        url: url.href
     };
 }
 

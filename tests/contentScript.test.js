@@ -73,6 +73,8 @@ describe('YeetCode Extension', () => {
     test('should extract problem title from URL', () => {
       const info = window.LeetCodeCodeSaver.getProblemInfoFromUrl('https://leetcode.com/problems/two-sum/');
       expect(info.title).toBe('two-sum');
+      expect(info.subPath).toBe('');
+      expect(info.isContest).toBe(false);
       expect(info.timestamp).toMatch(/\d{4}-\d{2}-\d{2}/);
       expect(info.url).toBe('https://leetcode.com/problems/two-sum/');
     });
@@ -80,6 +82,29 @@ describe('YeetCode Extension', () => {
     test('should handle unknown problem format', () => {
       const info = window.LeetCodeCodeSaver.getProblemInfoFromUrl('https://leetcode.com/some/other/page/');
       expect(info.title).toBe('unknown-problem');
+      expect(info.subPath).toBe('');
+      expect(info.isContest).toBe(false);
+    });
+
+    test('should detect contest problem pages and group under contests/<contest-id>', () => {
+      const singular = window.LeetCodeCodeSaver.getProblemInfoFromUrl('https://leetcode.com/contest/weekly-contest-500/problems/two-sum/');
+      expect(singular.title).toBe('two-sum');
+      expect(singular.subPath).toBe('contests/weekly-contest-500');
+      expect(singular.isContest).toBe(true);
+      expect(singular.contestFolder).toBe('weekly-contest-500');
+
+      const plural = window.LeetCodeCodeSaver.getProblemInfoFromUrl('https://leetcode.com/contests/weekly-contest-500/problems/two-sum/');
+      expect(plural.title).toBe('two-sum');
+      expect(plural.subPath).toBe('contests/weekly-contest-500');
+      expect(plural.isContest).toBe(true);
+      expect(plural.contestFolder).toBe('weekly-contest-500');
+    });
+
+    test('should not treat a contest dashboard page as a problem', () => {
+      const info = window.LeetCodeCodeSaver.getProblemInfoFromUrl('https://leetcode.com/contest/weekly-contest-500/');
+      expect(info.title).toBe('unknown-problem');
+      expect(info.subPath).toBe('');
+      expect(info.isContest).toBe(false);
     });
 
     test('should extract contest problem info from contest URL', () => {
@@ -87,6 +112,25 @@ describe('YeetCode Extension', () => {
       expect(info.title).toBe('two-sum');
       expect(info.contestFolder).toBe('weekly-contest-500');
       expect(info.url).toBe('https://leetcode.com/contest/weekly-contest-500/problems/two-sum/');
+    });
+
+    test('should keep contest URL slugs when the visible heading differs', () => {
+      window.history.replaceState({}, '', '/contest/weekly-contest-500/problems/two-sum/');
+      document.body.innerHTML = '<h1>Visible Problem Name</h1>';
+
+      const info = window.LeetCodeCodeSaver.getProblemInfo();
+
+      expect(info.title).toBe('two-sum');
+      expect(info.subPath).toBe('contests/weekly-contest-500');
+      expect(info.isContest).toBe(true);
+      expect(info.contestFolder).toBe('weekly-contest-500');
+
+      window.history.replaceState({}, '', '/');
+      document.body.innerHTML = `
+        <div id="editor-container"></div>
+        <button data-testid="judge-button">Submit</button>
+        <textarea style="display:none;">console.log('test');</textarea>
+      `;
     });
   });
 
@@ -411,6 +455,8 @@ describe('YeetCode Extension', () => {
 
     test('should commit an empty notes file when saveNotesAndTimer is enabled', (done) => {
       fetch
+        // 1st: LeetCode GraphQL notes lookup (no note stored server-side)
+        .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ data: { question: { questionId: '123', note: null } } }) })
         .mockResolvedValueOnce({ ok: false, status: 404, json: () => Promise.resolve({ message: 'Not Found' }) })
         .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ content: { sha: 'code-sha' } }) })
         .mockResolvedValueOnce({ ok: false, status: 404, json: () => Promise.resolve({ message: 'Not Found' }) })
@@ -430,9 +476,119 @@ describe('YeetCode Extension', () => {
       }, (response) => {
         try {
           expect(response.success).toBe(true);
-          expect(fetch).toHaveBeenCalledTimes(4);
-          const notesPutUrl = fetch.mock.calls[3][0];
+          expect(fetch).toHaveBeenCalledTimes(5);
+          const notesPutUrl = fetch.mock.calls[4][0];
           expect(notesPutUrl).toContain('/contents/two-sum/two-sum-notes.md');
+          done();
+        } catch (e) { done(e); }
+      });
+    });
+
+    test('should fall back to LeetCode GraphQL notes when DOM scraping found none', (done) => {
+      fetch
+        // 1st: LeetCode GraphQL notes lookup (the user has a Stored note)
+        .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ data: { question: { questionId: '123', note: 'API note: use dynamic programming.' } } }) })
+        .mockResolvedValueOnce({ ok: false, status: 404, json: () => Promise.resolve({ message: 'Not Found' }) })
+        .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ content: { sha: 'code-sha' } }) })
+        .mockResolvedValueOnce({ ok: false, status: 404, json: () => Promise.resolve({ message: 'Not Found' }) })
+        .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ content: { sha: 'notes-sha' } }) });
+
+      chrome.storage.sync.get.mockImplementationOnce((keys, callback) => {
+        callback({ githubToken: 'ghp_mock', githubRepo: 'owner/repo', githubBranch: 'main', githubFolder: '', saveNotesAndTimer: true });
+      });
+
+      chrome.runtime.sendMessage({
+        action: 'saveToGitHub',
+        code: 'print("hi")',
+        problemInfo: { title: 'two-sum', timestamp: '2026', url: 'https://leetcode.com/problems/two-sum/' },
+        languageId: 'python',
+        notesText: null,
+        timerValue: null
+      }, (response) => {
+        try {
+          expect(response.success).toBe(true);
+
+          // GraphQL call: session cookies, correct operation and variable
+          const [notesApiUrl, notesApiConfig] = fetch.mock.calls[0];
+          expect(notesApiUrl).toContain('leetcode.com/graphql');
+          expect(notesApiConfig.method).toBe('POST');
+          expect(notesApiConfig.credentials).toBe('include');
+          const notesApiOperation = JSON.parse(notesApiConfig.body);
+          expect(notesApiOperation.operationName).toBe('questionNote');
+          expect(notesApiOperation.variables).toEqual({ titleSlug: 'two-sum' });
+
+          // The note is embedded in the committed markdown
+          const notesPutBody = JSON.parse(fetch.mock.calls[4][1].body);
+          const decodedNotes = decodeURIComponent(escape(atob(notesPutBody.content)));
+          expect(decodedNotes).toContain('API note: use dynamic programming.');
+          done();
+        } catch (e) { done(e); }
+      });
+    });
+
+    test('should keep saving when the LeetCode GraphQL notes lookup fails', (done) => {
+      fetch
+        // 1st: notes lookup fails (session expired / network) -> gracefully continue
+        .mockResolvedValueOnce({ ok: false, status: 401, json: () => Promise.resolve({ message: 'Unauthorized' }) })
+        .mockResolvedValueOnce({ ok: false, status: 404, json: () => Promise.resolve({ message: 'Not Found' }) })
+        .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ content: { sha: 'code-sha' } }) })
+        .mockResolvedValueOnce({ ok: false, status: 404, json: () => Promise.resolve({ message: 'Not Found' }) })
+        .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ content: { sha: 'notes-sha' } }) });
+
+      chrome.storage.sync.get.mockImplementationOnce((keys, callback) => {
+        callback({ githubToken: 'ghp_mock', githubRepo: 'owner/repo', githubBranch: 'main', githubFolder: '', saveNotesAndTimer: true });
+      });
+
+      chrome.runtime.sendMessage({
+        action: 'saveToGitHub',
+        code: 'print("hi")',
+        problemInfo: { title: 'two-sum', timestamp: '2026', url: '' },
+        languageId: 'python',
+        notesText: null,
+        timerValue: null
+      }, (response) => {
+        try {
+          expect(response.success).toBe(true);
+          expect(fetch).toHaveBeenCalledTimes(5);
+          const notesPutBody = JSON.parse(fetch.mock.calls[4][1].body);
+          const decodedNotes = decodeURIComponent(escape(atob(notesPutBody.content)));
+          expect(decodedNotes).not.toContain('## Notes');
+          done();
+        } catch (e) { done(e); }
+      });
+    });
+
+    test('should place contest problem files under contests/<contest-id>/', (done) => {
+      fetch
+        .mockResolvedValueOnce({ ok: false, status: 404, json: () => Promise.resolve({ message: 'Not Found' }) })
+        .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ content: { sha: 'code-sha' } }) })
+        .mockResolvedValueOnce({ ok: false, status: 404, json: () => Promise.resolve({ message: 'Not Found' }) })
+        .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ content: { sha: 'notes-sha' } }) });
+
+      chrome.storage.sync.get.mockImplementationOnce((keys, callback) => {
+        callback({ githubToken: 'ghp_mock', githubRepo: 'owner/repo', githubBranch: 'main', githubFolder: '', saveNotesAndTimer: true });
+      });
+
+      chrome.runtime.sendMessage({
+        action: 'saveToGitHub',
+        code: 'print("hi")',
+        problemInfo: {
+          title: 'two-sum',
+          subPath: 'contests/weekly-contest-500',
+          isContest: true,
+          timestamp: '2026-01-01T00:00:00-000Z',
+          url: 'https://leetcode.com/contest/weekly-contest-500/problems/two-sum/'
+        },
+        languageId: 'python',
+        notesText: 'Contest notes',
+        timerValue: null
+      }, (response) => {
+        try {
+          expect(response.success).toBe(true);
+          const codeUrl = fetch.mock.calls[1][0];
+          const notesUrl = fetch.mock.calls[3][0];
+          expect(codeUrl).toContain('/contents/contests/weekly-contest-500/two-sum/two-sum.py');
+          expect(notesUrl).toContain('/contents/contests/weekly-contest-500/two-sum/two-sum-notes.md');
           done();
         } catch (e) { done(e); }
       });

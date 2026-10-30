@@ -226,10 +226,25 @@ async function handleSaveToGitHub(code, problemInfo, languageId, notesText, time
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '') || 'unknown-problem';
     
-    // --- Commit 1: Code file ---
-    const ext = getExtensionForLanguage(languageId);
+    // Handle contest problems - organize in contests/<contest-name>/<problem-title>
     const folderPrefix = settings.folder ? `${settings.folder}/` : '';
-    const codeFilePath = `${folderPrefix}${sanitizedTitle}/${sanitizedTitle}${ext}`;
+    let codeFilePath;
+    let notesFilePath;
+    
+    if (problemInfo.contestFolder) {
+        const sanitizedContest = problemInfo.contestFolder
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        const ext = getExtensionForLanguage(languageId);
+        codeFilePath = `${folderPrefix}contests/${sanitizedContest}/${sanitizedTitle}${ext}`;
+        notesFilePath = `${folderPrefix}contests/${sanitizedContest}/${sanitizedTitle}-notes.md`;
+    } else {
+        const ext = getExtensionForLanguage(languageId);
+        codeFilePath = `${folderPrefix}${sanitizedTitle}/${sanitizedTitle}${ext}`;
+        notesFilePath = `${folderPrefix}${sanitizedTitle}/${sanitizedTitle}-notes.md`;
+    }
+    
     const codeCommitMessage = `Save LeetCode solution: ${problemInfo.title} (${problemInfo.timestamp || new Date().toISOString()})`;
     
     const codeResult = await commitFileToGitHub(settings, codeFilePath, code, codeCommitMessage);
@@ -238,11 +253,17 @@ async function handleSaveToGitHub(code, problemInfo, languageId, notesText, time
     let notesResult = null;
     if (settings.saveNotesAndTimer) {
         const notesMarkdown = buildNotesMarkdown(problemInfo, notesText, timerValue, languageId);
-        const notesFilePath = `${folderPrefix}${sanitizedTitle}/${sanitizedTitle}-notes.md`;
         const notesCommitMessage = `Save notes for: ${problemInfo.title} (${problemInfo.timestamp || new Date().toISOString()})`;
         
         notesResult = await commitFileToGitHub(settings, notesFilePath, notesMarkdown, notesCommitMessage);
     }
     
-    return { code: codeResult, notes: notesResult };
+    return {
+        code: codeResult,
+        notes: notesResult,
+        repo: settings.repo,
+        branch: settings.branch,
+        codeFilePath: codeFilePath,
+        notesFilePath: notesFilePath
+    };
 }

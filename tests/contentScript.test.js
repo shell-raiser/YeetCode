@@ -81,6 +81,13 @@ describe('YeetCode Extension', () => {
       const info = window.LeetCodeCodeSaver.getProblemInfoFromUrl('https://leetcode.com/some/other/page/');
       expect(info.title).toBe('unknown-problem');
     });
+
+    test('should extract contest problem info from contest URL', () => {
+      const info = window.LeetCodeCodeSaver.getProblemInfoFromUrl('https://leetcode.com/contest/weekly-contest-500/problems/two-sum/');
+      expect(info.title).toBe('two-sum');
+      expect(info.contestFolder).toBe('weekly-contest-500');
+      expect(info.url).toBe('https://leetcode.com/contest/weekly-contest-500/problems/two-sum/');
+    });
   });
 
   // ─────────────────────────────────────────────────────

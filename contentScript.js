@@ -12,9 +12,13 @@ window.LeetCodeCodeSaver = {
         const url = new URL(urlString);
         const pathParts = url.pathname.split('/');
         let problemTitle = 'unknown-problem';
+        let contestFolder = null;
         
         if (pathParts.length >= 3 && pathParts[1] === 'problems') {
             problemTitle = pathParts[2];
+        } else if (pathParts.length >= 5 && pathParts[1] === 'contest' && pathParts[3] === 'problems') {
+            contestFolder = pathParts[2];
+            problemTitle = pathParts[4];
         }
         
         const timestamp = new Date().toISOString();
@@ -22,7 +26,8 @@ window.LeetCodeCodeSaver = {
         return {
             title: problemTitle,
             timestamp: timestamp,
-            url: url.href
+            url: url.href,
+            contestFolder: contestFolder
         };
     },
     getCodeFromEditor: function() {
@@ -239,6 +244,11 @@ function createCustomButton(submitButton) {
                         customButton.innerHTML = YEET_BUTTON_HTML;
                     }, 2000);
                     showStatusMessage('Code saved to GitHub successfully!', 'success');
+                    
+                    // Add "View on GitHub" button if we have file info
+                    if (response.result && response.result.codeFilePath) {
+                        showGitHubLink(response.result);
+                    }
                 } else {
                     const errorMsg = (response && response.error) ? response.error : 'Unknown background error';
                     showStatusMessage(`Error: ${errorMsg}`, 'error');
@@ -283,6 +293,9 @@ async function triggerAutoSave() {
             
             if (response && response.success) {
                 showStatusMessage('Auto-saved to GitHub successfully!', 'success');
+                if (response.result && response.result.codeFilePath) {
+                    showGitHubLink(response.result);
+                }
                 const manualButton = document.getElementById('leetcode-saver-button');
                 if (manualButton) {
                     manualButton.textContent = 'Auto-Saved!';
@@ -372,9 +385,13 @@ function getProblemInfo() {
     const url = new URL(window.location.href);
     const pathParts = url.pathname.split('/');
     let problemTitle = 'unknown-problem';
+    let contestFolder = null;
     
     if (pathParts.length >= 3 && pathParts[1] === 'problems') {
         problemTitle = pathParts[2];
+    } else if (pathParts.length >= 5 && pathParts[1] === 'contest' && pathParts[3] === 'problems') {
+        contestFolder = pathParts[2];
+        problemTitle = pathParts[4];
     }
     
     const titleElement = document.querySelector('.title') || 
@@ -382,10 +399,13 @@ function getProblemInfo() {
                         document.querySelector('[data-cy="problem-title"]');
                         
     if (titleElement && titleElement.textContent.trim()) {
-        problemTitle = titleElement.textContent.trim()
+        const extractedTitle = titleElement.textContent.trim()
                       .toLowerCase()
                       .replace(/[^a-z0-9]+/g, '-')
                       .replace(/^-+|-+$/g, '');
+        if (extractedTitle) {
+            problemTitle = extractedTitle;
+        }
     }
     
     const timestamp = new Date().toISOString();
@@ -393,11 +413,13 @@ function getProblemInfo() {
     return {
         title: problemTitle,
         timestamp: timestamp,
-        url: url.href
+        url: url.href,
+        contestFolder: contestFolder
     };
 }
 
 function getNotesValue() {
+    // Try to get notes from DOM selectors first
     const noteSelectors = [
         '[aria-label*="note" i]',
         '[aria-labelledby*="note" i]',
@@ -444,7 +466,8 @@ function getNotesValue() {
         const containerText = getElementTextValue(container);
         if (isLikelyUserNote(containerText)) return containerText;
     }
-
+    
+    // Fallback to localStorage
     return getNotesValueFromStorage();
 }
 
@@ -494,12 +517,45 @@ function isLikelyUserNote(value) {
 function getNotesValueFromStorage() {
     try {
         const candidates = [];
+        
+        // Check localStorage for LeetCode-specific keys
+        const leetcodeKeys = [
+            'leetcode.notes',
+            'leetcode.user.notes',
+            'lc_notes',
+            'notes',
+            'note',
+            'notepad',
+            'notebook'
+        ];
+        
+        // First check known LeetCode keys
+        for (const key of leetcodeKeys) {
+            const value = window.localStorage.getItem(key);
+            if (value) {
+                collectNoteCandidates(value, candidates);
+            }
+        }
+        
+        // Then check all localStorage keys that might contain notes
         for (let i = 0; i < window.localStorage.length; i += 1) {
             const key = window.localStorage.key(i);
             if (!key || !/notes?|notepad|notebook/i.test(key)) continue;
 
             const value = window.localStorage.getItem(key);
             collectNoteCandidates(value, candidates);
+        }
+        
+        // Also check sessionStorage
+        try {
+            for (let i = 0; i < window.sessionStorage.length; i += 1) {
+                const key = window.sessionStorage.key(i);
+                if (!key || !/notes?|notepad|notebook/i.test(key)) continue;
+                const value = window.sessionStorage.getItem(key);
+                collectNoteCandidates(value, candidates);
+            }
+        } catch (e) {
+            // Ignore sessionStorage errors
         }
 
         candidates.sort((a, b) => b.length - a.length);
@@ -567,6 +623,39 @@ function getTimerValue() {
     return null;
 }
 
+function showGitHubLink(result) {
+    const ghUrl = `https://github.com/${result.repo}/blob/${result.branch}/${result.codeFilePath}`;
+    const existing = document.getElementById('leetcode-github-link');
+    if (existing) existing.remove();
+    
+    const link = document.createElement('a');
+    link.id = 'leetcode-github-link';
+    link.href = ghUrl;
+    link.target = '_blank';
+    link.textContent = 'View on GitHub';
+    link.style.marginLeft = '8px';
+    link.style.padding = '6px 12px';
+    link.style.backgroundColor = '#2ea44f';
+    link.style.color = '#ffffff';
+    link.style.border = 'none';
+    link.style.borderRadius = '4px';
+    link.style.cursor = 'pointer';
+    link.style.fontSize = '14px';
+    link.style.fontWeight = 'bold';
+    link.style.textDecoration = 'none';
+    link.style.display = 'inline-flex';
+    link.style.alignItems = 'center';
+    link.style.justifyContent = 'center';
+    link.style.alignSelf = 'center';
+    
+    const submitButton = findSubmitButton();
+    if (submitButton) {
+        const submitWrapper = submitButton.parentNode.parentNode;
+        const flexContainer = submitWrapper.parentNode;
+        flexContainer.appendChild(link);
+    }
+}
+
 function showStatusMessage(message, type) {
     const existingStatus = document.querySelector('#leetcode-saver-status');
     if (existingStatus) {
@@ -617,5 +706,7 @@ Object.assign(window.LeetCodeCodeSaver, {
     getCodeAndLanguageFromPage,
     getNotesValue,
     getTimerValue,
-    scanPageForSaverHooks
+    scanPageForSaverHooks,
+    showGitHubLink,
+    getProblemInfo
 });

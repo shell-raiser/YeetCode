@@ -82,7 +82,293 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             .catch(error => sendResponse({ success: false, error: error.message }));
         return true; // Keep message channel open for async response
     }
+
+    if (request.action === 'githubDeviceFlowStart') {
+        startGithubDeviceFlow(request.clientId)
+            .then(result => sendResponse({ success: true, result }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+        return true; // Keep message channel open for async response
+    }
+
+    if (request.action === 'githubDeviceFlowCancel') {
+        cancelGithubDeviceFlow();
+        sendResponse({ success: true });
+        return false;
+    }
+
+    if (request.action === 'githubSignOut') {
+        handleGithubSignOut()
+            .then(result => sendResponse({ success: true, result }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+        return true;
+    }
+
+    if (request.action === 'githubGetUser') {
+        handleGithubGetUser()
+            .then(result => sendResponse({ success: true, result }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+        return true;
+    }
 });
+
+// ─────────────────────────────────────────────────────
+// GitHub Sign-In via the OAuth 2.0 Device Flow (no client secret, no PAT)
+// Docs: https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow
+// ─────────────────────────────────────────────────────
+
+const DEVICE_FLOW_URLS = {
+    deviceCode: 'https://github.com/login/device/code',
+    accessToken: 'https://github.com/login/oauth/access_token',
+    verification: 'https://github.com/login/device',
+    user: 'https://api.github.com/user'
+};
+
+// module-level session so a new start cancels a poll still in flight
+let deviceFlowSession = null;
+
+function sleepDeviceFlow(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function broadcastDeviceFlowStatus(status, extra) {
+    try {
+        chrome.runtime.sendMessage({ action: 'deviceFlowStatus', status, ...(extra || {}) }, function() {
+            // No-window errors when no page is listening; ignore on purpose
+            if (chrome.runtime.lastError) { /* ignore */ }
+        });
+    } catch (e) { /* ignore */ }
+}
+
+async function startGithubDeviceFlow(clientId) {
+    const cleanClientId = (clientId || '').trim();
+    if (!cleanClientId) {
+        throw new Error('An OAuth App Client ID is required for Sign-In. Create an OAuth App at github.com/settings/applications/new (callback URL can be any placeholder), enable Device Flow on it, and paste its Client ID here.');
+    }
+
+    // Cancel any in-flight flow before starting a new one
+    if (deviceFlowSession) {
+        deviceFlowSession.canceled = true;
+    }
+    const session = { canceled: false };
+    deviceFlowSession = session;
+
+    let resp;
+    try {
+        resp = await fetch(DEVICE_FLOW_URLS.deviceCode, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                client_id: cleanClientId,
+                scope: 'repo'
+            })
+        });
+    } catch (error) {
+        deviceFlowSession = null;
+        throw new Error('Could not reach github.com to start Device Flow.');
+    }
+
+    let data;
+    try {
+        data = await resp.json();
+    } catch (e) {
+        deviceFlowSession = null;
+        throw new Error('Unexpected response from github.com (not JSON).');
+    }
+
+    if (!resp.ok || data.error || !data.device_code || !data.user_code) {
+        deviceFlowSession = null;
+        let msg = `Device flow request failed: ${data.error || `HTTP ${resp.status}`}`;
+        if (data.error === 'device_flow_disabled') {
+            msg = 'Device Flow is not enabled for this OAuth App. Enable it on the app\'s settings page on github.com, then try again.';
+        } else if (data.error_description) {
+            msg += ` (${data.error_description})`;
+        }
+        throw new Error(msg);
+    }
+
+    // Fire-and-forget polling; results flow to the options page via deviceFlowStatus broadcasts
+    pollDeviceFlowToken(session, cleanClientId, data).catch((error) => {
+        if (!session.canceled) {
+            broadcastDeviceFlowStatus('error', { message: error.message });
+            if (deviceFlowSession === session) {
+                deviceFlowSession = null;
+            }
+        }
+    });
+
+    return {
+        userCode: data.user_code,
+        verificationUri: data.verification_uri || DEVICE_FLOW_URLS.verification,
+        expiresIn: data.expires_in || 900,
+        interval: data.interval || 5
+    };
+}
+
+function cancelGithubDeviceFlow() {
+    if (deviceFlowSession) {
+        deviceFlowSession.canceled = true;
+    }
+}
+
+async function pollDeviceFlowToken(session, clientId, deviceCodeData) {
+    let intervalMs = Math.max(50, (deviceCodeData.interval || 5) * 1000);
+    const expiresAt = Date.now() + (deviceCodeData.expires_in || 900) * 1000;
+
+    broadcastDeviceFlowStatus('pending', { userCode: deviceCodeData.user_code });
+
+    while (!session.canceled && Date.now() < expiresAt) {
+        await sleepDeviceFlow(intervalMs);
+        if (session.canceled) break;
+
+        let data = null;
+        try {
+            const resp = await fetch(DEVICE_FLOW_URLS.accessToken, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    client_id: clientId,
+                    device_code: deviceCodeData.device_code,
+                    grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
+                })
+            });
+            data = await resp.json();
+        } catch (e) {
+            // Transient network error — keep polling until the code expires
+            continue;
+        }
+
+        if (data && data.access_token) {
+            try {
+                await storeDeviceFlowToken(data.access_token);
+            } catch (e) {
+                if (deviceFlowSession === session) {
+                    deviceFlowSession = null;
+                }
+                broadcastDeviceFlowStatus('error', { message: e.message });
+                return;
+            }
+            if (deviceFlowSession === session) {
+                deviceFlowSession = null;
+            }
+            broadcastDeviceFlowStatus('success', { userCode: deviceCodeData.user_code });
+            return;
+        }
+
+        switch (data && data.error) {
+            case 'authorization_pending':
+                broadcastDeviceFlowStatus('pending', { userCode: deviceCodeData.user_code });
+                break;
+            case 'slow_down':
+                intervalMs = Math.max(50, (data.interval || intervalMs + 5) * 1000);
+                break;
+            case 'expired_token':
+            case 'token_expired':
+                if (deviceFlowSession === session) {
+                    deviceFlowSession = null;
+                }
+                broadcastDeviceFlowStatus('expired');
+                return;
+            case 'access_denied':
+                if (deviceFlowSession === session) {
+                    deviceFlowSession = null;
+                }
+                broadcastDeviceFlowStatus('denied');
+                return;
+            default:
+                if (deviceFlowSession === session) {
+                    deviceFlowSession = null;
+                }
+                broadcastDeviceFlowStatus('error', { message: (data && (data.error_description || data.error)) || 'Unknown error' });
+                return;
+        }
+    }
+
+    // Loop exit without a token
+    if (deviceFlowSession === session) {
+        deviceFlowSession = null;
+    }
+    if (session.canceled) {
+        broadcastDeviceFlowStatus('canceled');
+    } else {
+        broadcastDeviceFlowStatus('expired');
+    }
+}
+
+function storeDeviceFlowToken(token) {
+    return new Promise((resolve, reject) => {
+        if (!token) {
+            reject(new Error('GitHub did not return an access token.'));
+            return;
+        }
+        chrome.storage.sync.set({ githubToken: token, githubAuthMethod: 'oauth' }, function() {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+            }
+            resolve({ stored: true });
+        });
+    });
+}
+
+// Sign out only clears tokens created by GitHub sign-in; a pasted PAT is kept
+// untouched, tracked by githubAuthMethod.
+async function handleGithubSignOut() {
+    return new Promise((resolve) => {
+        chrome.storage.sync.get(['githubAuthMethod'], function(items) {
+            if (items.githubAuthMethod !== 'oauth') {
+                resolve({ signedOut: false, reason: 'no OAuth sign-in session' });
+                return;
+            }
+            chrome.storage.sync.remove(['githubToken', 'githubAuthMethod'], function() {
+                broadcastDeviceFlowStatus('signed_out');
+                resolve({ signedOut: true });
+            });
+        });
+    });
+}
+
+async function handleGithubGetUser() {
+    return new Promise((resolve, reject) => {
+        chrome.storage.sync.get(['githubToken'], function(items) {
+            const token = items.githubToken || '';
+            if (!token) {
+                reject(new Error('Not signed in.'));
+                return;
+            }
+            fetch(DEVICE_FLOW_URLS.user, {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            }).then(async (resp) => {
+                if (!resp.ok) {
+                    let msg = `GitHub API Error: HTTP ${resp.status}`;
+                    try {
+                        const errData = await resp.json();
+                        if (errData.message) msg = `GitHub API Error: ${errData.message}`;
+                    } catch (e) { /* ignore */ }
+                    if (resp.status === 401) {
+                        msg = 'GitHub rejected the saved token (401). It may have been revoked — sign in again.';
+                    }
+                    reject(new Error(msg));
+                    return;
+                }
+                const user = await resp.json();
+                resolve({
+                    login: user.login || '',
+                    name: user.name || '',
+                    scopes: resp.headers && resp.headers.get ? (resp.headers.get('X-OAuth-Scopes') || '') : ''
+                });
+            }).catch((e) => reject(new Error(`Could not reach GitHub API (${e.message}).`)));
+        });
+    });
+}
 
 // Test connection to GitHub repository
 async function handleTestConnection(token, repo) {
@@ -109,7 +395,7 @@ async function handleTestConnection(token, repo) {
         }
         
         if (response.status === 401) {
-            throw new Error(`Unauthorized: Invalid Personal Access Token (${errMsg}).`);
+            throw new Error(`Unauthorized: GitHub rejected the token (may be invalid, expired or revoked) (${errMsg}).`);
         } else if (response.status === 404) {
             throw new Error(`Repository not found: Please verify that '${repo}' exists and your token has permission to access it.`);
         } else {

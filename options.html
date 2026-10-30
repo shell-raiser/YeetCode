@@ -242,6 +242,151 @@
         .footer-note a:hover {
             text-decoration: underline;
         }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: 0.03em;
+        }
+
+        .card-separator {
+            height: 1px;
+            background: var(--border-color);
+            margin: 4px 0;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .button-row button {
+            flex: 1;
+            padding: 8px 12px;
+        }
+
+        .button-row button#githubSignIn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+        }
+
+        .button-row button#githubSignIn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .button-row button#githubSignOut {
+            background-color: transparent;
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+
+        .button-row button#githubSignOut:hover {
+            background-color: var(--danger-bg);
+        }
+
+        .button-row button#deviceFlowCancel {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .button-row button#deviceFlowCancel:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .button-row button#openGithubDevice {
+            background-color: transparent;
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .button-row button#openGithubDevice:hover {
+            background-color: rgba(241, 196, 15, 0.08);
+        }
+
+        .device-flow-box {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px;
+        }
+
+        .user-code-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .user-code {
+            flex: 1;
+            font-family: 'Courier New', monospace;
+            font-size: 19px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: var(--text-primary);
+            text-align: center;
+            cursor: pointer;
+            user-select: all;
+        }
+
+        .user-code-row button {
+            flex: 0 0 auto;
+            padding: 8px 12px;
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            font-family: inherit;
+        }
+
+        .user-code-row button:hover {
+            border-color: var(--accent-blue);
+            color: var(--text-primary);
+        }
+
+        .hint a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        .hint a:hover {
+            text-decoration: underline;
+        }
+
+        .scope-notice {
+            margin: 10px 0 0 0;
+            padding: 10px 12px;
+            background: rgba(241, 196, 15, 0.06);
+            border: 1px solid rgba(241, 196, 15, 0.25);
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--text-secondary);
+        }
+
+        .scope-notice strong {
+            color: var(--text-primary);
+        }
+
+        .scope-notice a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        .scope-notice a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -251,8 +396,40 @@
     </div>
     
     <div class="card">
+        <div class="card-title">GitHub Sign-In</div>
+
+        <div class="device-flow-box" id="deviceFlowBox" style="display:none;">
+            <p class="hint">Enter this one-time code at <strong>github.com/login/device</strong> to authorize YeetCode:</p>
+            <div class="user-code-row">
+                <code id="deviceUserCode" class="user-code">—</code>
+                <button id="copyUserCode" type="button" title="Copy code">Copy</button>
+            </div>
+            <div class="button-group" style="margin-top:10px;">
+                <button id="openGithubDevice" type="button">Open GitHub login page</button>
+                <button id="deviceFlowCancel" type="button">Cancel</button>
+            </div>
+            <div id="deviceFlowStatusText" class="hint" style="margin-top:8px;">Waiting for authorization…</div>
+        </div>
+
         <div class="form-group">
-            <label for="githubToken">GitHub Token (needs 'repo' scope)</label>
+            <div class="button-row">
+                <button id="githubSignIn" type="button">Sign in with GitHub</button>
+                <button id="githubSignOut" type="button" style="display:none;">Sign Out</button>
+            </div>
+        </div>
+        <p class="hint" id="githubAuthStatus"></p>
+        <p class="hint">Creates a token for this extension only (OAuth Device Flow — no PAT needed). Requires an OAuth App Client ID; get one at <a href="https://github.com/settings/applications/new" target="_blank">github.com/settings/applications/new</a> and enable <em>Device Flow</em> on it.</p>
+        <p class="scope-notice">GitHub's OAuth sign-in requests access to <strong>all your repositories</strong> — the GitHub API does not let an OAuth app be limited to a single repo. YeetCode only ever reads from and writes to the repository configured below in "GitHub Repository". If you prefer to grant access to just that one repo, create a fine-grained Personal Access Token with access to it only and paste it into the token field instead.</p>
+
+        <div class="form-group">
+            <label for="githubClientId">OAuth App Client ID (for Sign-In)</label>
+            <input type="text" id="githubClientId" placeholder="e.g., I1v1_abc123def456">
+        </div>
+
+        <div class="card-separator"></div>
+
+        <div class="form-group">
+            <label for="githubToken">GitHub Token (auto-filled by Sign-In, or paste a PAT)</label>
             <div class="input-wrapper">
                 <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxx">
             </div>

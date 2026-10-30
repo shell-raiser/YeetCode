@@ -30,7 +30,8 @@ A browser extension that allows you to save your LeetCode code and notes directl
 1. Navigate to any LeetCode problem page (e.g., https://leetcode.com/problems/two-sum/)
 2. Click the extension icon to open options (or go through Chrome extensions menu)
 3. Configure your GitHub settings:
-   - **GitHub Personal Access Token**: Generate one at https://github.com/settings/tokens (needs `repo` scope)
+   - **Sign in with GitHub** (recommended): enter your OAuth App Client ID and click "Sign in with GitHub" — see [GitHub Sign-In](#github-sign-in-device-flow) below
+   - Or paste a **GitHub Personal Access Token**: generate one at https://github.com/settings/tokens (needs `repo` scope)
    - **GitHub Repository**: In format `owner/repo` (e.g., `username/leetcode-solutions`)
    - **Branch**: Default is `main` (change if you use a different branch)
 4. Click "Save Settings"
@@ -52,6 +53,24 @@ The extension consists of four main components:
    - Fetches saved GitHub settings
    - Saves code to GitHub via GitHub API
 4. **background.js** - Service worker (currently minimal, can be expanded for future features)
+
+## GitHub Sign-In (Device Flow)
+
+Instead of creating a Personal Access Token, you can authorize the extension against your GitHub account directly with the OAuth 2.0 Device Flow — the same one-time-code flow used when signing in on TVs.
+
+One-time setup:
+
+1. Go to https://github.com/settings/applications/new and create an OAuth App
+   - **Homepage URL** and **Authorization callback URL** can be any placeholder (e.g., `https://localhost`)
+2. On the app's settings page, enable **Device Flow**
+3. Copy the app's **Client ID** and paste it into the extension options under "OAuth App Client ID (for Sign-In)"
+4. Click **Sign in with GitHub**, then enter the one-time code at https://github.com/login/device
+
+Sign-in is the recommended method: in exchange for the completed authorization, the extension receives a GitHub token with the `repo` scope which it stores and uses for all GitHub API calls. Go to the extension's options and click **Sign Out** to remove it at any time.
+
+> **Trade-off vs a PAT**: a token obtained by Device Flow has the `repo` scope for **all** your repositories (GitHub OAuth Apps cannot scope to a single repo, only a GitHub App could). A fine-grained PAT can be restricted to just your solutions repo — that option is still fully supported: paste it into the token field.
+>
+> **Security Note**: The token is stored in Chrome's sync storage and is only used for GitHub API calls from your browser. It is never transmitted to any third-party server.
 
 ## GitHub Personal Access Token
 

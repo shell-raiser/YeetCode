@@ -2,29 +2,28 @@ name: Test Extension
 
 on:
   push:
-    # run on all branches except main
-    branches-ignore: [ main ]
+    # run on all branches, including main (release.yml waits for these runs)
   pull_request:
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         node-version: ['current']
-    
+
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    
+
     - name: Install dependencies
       run: npm ci
-    
+
     - name: Run tests
       run: npm test

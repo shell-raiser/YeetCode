@@ -292,10 +292,199 @@ const LANGUAGE_EXTENSIONS = {
     'dart': '.dart'
 };
 
+const LEETCODE_LANGUAGE_SLUGS = {
+    'python': ['python', 'python3'],
+    'python3': ['python3', 'python'],
+    'go': ['go', 'golang'],
+    'golang': ['golang', 'go'],
+    'shell': ['shell', 'bash'],
+    'bash': ['bash', 'shell']
+};
+
 function getExtensionForLanguage(langId) {
     if (!langId) return '.txt';
     const cleanLang = langId.toLowerCase().trim();
     return LANGUAGE_EXTENSIONS[cleanLang] || '.txt';
+}
+
+function getProblemDirectory(problemInfo) {
+    const sanitizedTitle = problemInfo.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'unknown-problem';
+
+    const contestFolder = problemInfo.isContest
+        ? problemInfo.contestFolder ||
+          (typeof problemInfo.subPath === 'string' ? problemInfo.subPath.split('/').filter(Boolean).pop() : '')
+        : '';
+    const sanitizedContestFolder = contestFolder
+        ? contestFolder.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+        : '';
+
+    return {
+        sanitizedTitle,
+        directory: sanitizedContestFolder
+            ? `contests/${sanitizedContestFolder}/${sanitizedTitle}`
+            : sanitizedTitle
+    };
+}
+
+function getProblemFilePath(problemInfo, languageId, settings) {
+    const { sanitizedTitle, directory } = getProblemDirectory(problemInfo);
+    const folder = settings.folder.trim().replace(/^\/+|\/+$/g, '');
+    const folderPrefix = folder ? `${folder}/` : '';
+    return `${folderPrefix}${directory}/${sanitizedTitle}${getExtensionForLanguage(languageId)}`;
+}
+
+function getParentFolderPrefix(settings) {
+    const folder = settings.folder.trim().replace(/^\/+|\/+$/g, '');
+    return folder ? `${folder}/` : '';
+}
+
+function decodeGitHubFileContent(content) {
+    if (typeof content !== 'string') {
+        throw new Error('GitHub returned a file without content.');
+    }
+
+    const binary = atob(content.replace(/\s/g, ''));
+    const encoded = Array.from(binary, (character) => {
+        return `%${character.charCodeAt(0).toString(16).padStart(2, '0')}`;
+    }).join('');
+    return decodeURIComponent(encoded);
+}
+
+async function fetchGitHubFile(settings, filePath) {
+    const encodedPath = filePath.split('/').map(encodeURIComponent).join('/');
+    const apiUrl = `https://api.github.com/repos/${settings.repo}/contents/${encodedPath}?ref=${encodeURIComponent(settings.branch)}`;
+    const response = await fetch(apiUrl, {
+        headers: {
+            'Authorization': `token ${settings.token}`,
+            'Accept': 'application/vnd.github.v3+json'
+        }
+    });
+
+    if (response.status === 404) return null;
+    if (!response.ok) {
+        let errMsg = `HTTP Error ${response.status}`;
+        try {
+            const data = await response.json();
+            errMsg = data.message || errMsg;
+        } catch (e) {
+            // Keep the HTTP status when GitHub does not return JSON.
+        }
+        throw new Error(`GitHub API Error: ${errMsg}`);
+    }
+
+    const file = await response.json();
+    return {
+        content: decodeGitHubFileContent(file.content),
+        path: file.path || filePath
+    };
+}
+
+async function isLeetCodeStarterCode(titleSlug, languageId, editorCode) {
+    const response = await fetch('https://leetcode.com/graphql/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            operationName: 'questionEditorData',
+            query: 'query questionEditorData($titleSlug: String!) {\n  question(titleSlug: $titleSlug) {\n    codeSnippets {\n      langSlug\n      code\n    }\n  }\n}',
+            variables: { titleSlug }
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`LeetCode returned HTTP ${response.status} while checking the starter code.`);
+    }
+
+    const data = await response.json();
+    const languageSlug = languageId.toLowerCase().trim();
+    const languageSlugs = LEETCODE_LANGUAGE_SLUGS[languageSlug] || [languageSlug];
+    const snippets = data && data.data && data.data.question && data.data.question.codeSnippets;
+    const snippet = Array.isArray(snippets)
+        ? snippets.find((item) => languageSlugs.includes(item.langSlug))
+        : null;
+
+    if (!snippet || typeof snippet.code !== 'string') {
+        throw new Error(`LeetCode did not provide a starter template for ${languageId}.`);
+    }
+
+    const normalize = (code) => code.replace(/\r\n/g, '\n').trim();
+    return normalize(editorCode) === normalize(snippet.code);
+}
+
+function setEditorCodeInPage(code, expectedLanguageId, expectedEditorCode, expectedPathname) {
+    if (expectedPathname && window.location.pathname !== expectedPathname) {
+        return { success: false, error: 'The LeetCode problem changed before import.' };
+    }
+
+    const editors = window.monaco && window.monaco.editor &&
+        typeof window.monaco.editor.getEditors === 'function'
+        ? window.monaco.editor.getEditors()
+        : [];
+    const editor = editors[0];
+    if (!editor) return { success: false, error: 'LeetCode editor is not available.' };
+
+    const model = typeof editor.getModel === 'function' ? editor.getModel() : null;
+    const currentLanguageId = model && typeof model.getLanguageId === 'function'
+        ? model.getLanguageId()
+        : null;
+    if (!currentLanguageId || currentLanguageId !== expectedLanguageId) {
+        return { success: false, error: 'The selected LeetCode language changed before import.' };
+    }
+
+    if (typeof expectedEditorCode === 'string') {
+        const currentCode = typeof editor.getValue === 'function'
+            ? editor.getValue()
+            : model && typeof model.getValue === 'function'
+                ? model.getValue()
+                : null;
+        if (currentCode !== expectedEditorCode) {
+            return { success: false, error: 'The editor changed before automatic import.' };
+        }
+    }
+
+    if (typeof editor.setValue === 'function') {
+        editor.setValue(code);
+    } else if (model && typeof model.setValue === 'function') {
+        model.setValue(code);
+    } else {
+        return { success: false, error: 'LeetCode editor cannot accept imported code.' };
+    }
+
+    return { success: true };
+}
+
+function getProblemPathname(problemInfo) {
+    return typeof problemInfo.url === 'string' && problemInfo.url
+        ? new URL(problemInfo.url).pathname
+        : null;
+}
+
+async function replaceEditorCode(tabId, code, languageId, expectedEditorCode, expectedPathname) {
+    if (typeof tabId !== 'number') {
+        throw new Error('Could not identify the LeetCode tab for import.');
+    }
+
+    const results = await chrome.scripting.executeScript({
+        target: { tabId },
+        world: 'MAIN',
+        func: setEditorCodeInPage,
+        args: [
+            code,
+            languageId,
+            typeof expectedEditorCode === 'string' ? expectedEditorCode : null,
+            expectedPathname
+        ]
+    });
+    const result = results && results[0] && results[0].result;
+    if (!result || !result.success) {
+        throw new Error((result && result.error) || 'Unable to import code into the LeetCode editor.');
+    }
 }
 
 // Fetch extension settings from storage
@@ -306,14 +495,16 @@ async function getExtensionSettings() {
             'githubRepo',
             'githubBranch',
             'githubFolder',
-            'saveNotesAndTimer'
+            'saveNotesAndTimer',
+            'autoImportFromGitHub'
         ], function(items) {
             resolve({
                 token: items.githubToken || '',
                 repo: items.githubRepo || '',
                 branch: items.githubBranch || 'main',
                 folder: items.githubFolder || '',
-                saveNotesAndTimer: items.saveNotesAndTimer !== undefined ? items.saveNotesAndTimer : true
+                saveNotesAndTimer: items.saveNotesAndTimer !== undefined ? items.saveNotesAndTimer : true,
+                autoImportFromGitHub: items.autoImportFromGitHub === true
             });
         });
     });
@@ -332,6 +523,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             .then(result => sendResponse({ success: true, result }))
             .catch(error => sendResponse({ success: false, error: error.message }));
         return true; // Keep message channel open for async response
+    }
+
+    if (request.action === 'checkGitHubSolution') {
+        handleCheckGitHubSolution(
+            request.problemInfo,
+            request.languageId,
+            request.editorCode,
+            request.allowAutoImport === true,
+            sender.tab && sender.tab.id
+        )
+            .then(result => sendResponse({ success: true, result }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+        return true;
+    }
+
+    if (request.action === 'importFromGitHub') {
+        handleImportFromGitHub(
+            request.problemInfo,
+            request.languageId,
+            sender.tab && sender.tab.id
+        )
+            .then(result => sendResponse({ success: true, result }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+        return true;
     }
     
     if (request.action === 'testConnection') {
@@ -362,6 +577,88 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return false;
     }
 });
+
+async function handleCheckGitHubSolution(problemInfo, languageId, editorCode, allowAutoImport, tabId) {
+    const settings = await getExtensionSettings();
+    if (!settings.token || !settings.repo) {
+        return { configured: false };
+    }
+
+    const codeFilePath = getProblemFilePath(problemInfo, languageId, settings);
+    const solution = await fetchGitHubFile(settings, codeFilePath);
+    if (!solution) {
+        return {
+            configured: true,
+            found: false,
+            languageId
+        };
+    }
+
+    let autoImported = false;
+    let autoImportError = null;
+    if (settings.autoImportFromGitHub && allowAutoImport && typeof editorCode === 'string') {
+        let editorIsStarter = editorCode.trim() === '';
+        if (!editorIsStarter) {
+            try {
+                editorIsStarter = await isLeetCodeStarterCode(
+                    problemInfo.problemSlug || problemInfo.title,
+                    languageId,
+                    editorCode
+                );
+            } catch (error) {
+                autoImportError = error.message;
+            }
+        }
+
+        if (editorIsStarter) {
+            try {
+                await replaceEditorCode(
+                    tabId,
+                    solution.content,
+                    languageId,
+                    editorCode,
+                    getProblemPathname(problemInfo)
+                );
+                autoImported = true;
+            } catch (error) {
+                autoImportError = error.message;
+            }
+        }
+    }
+
+    return {
+        configured: true,
+        found: true,
+        autoImported,
+        autoImportError,
+        languageId,
+        codeFilePath,
+        repo: settings.repo,
+        branch: settings.branch
+    };
+}
+
+async function handleImportFromGitHub(problemInfo, languageId, tabId) {
+    const settings = await getExtensionSettings();
+    if (!settings.token || !settings.repo) {
+        throw new Error('GitHub token or repository not configured in settings.');
+    }
+
+    const codeFilePath = getProblemFilePath(problemInfo, languageId, settings);
+    const solution = await fetchGitHubFile(settings, codeFilePath);
+    if (!solution) {
+        return { found: false, languageId };
+    }
+
+    await replaceEditorCode(tabId, solution.content, languageId, undefined, getProblemPathname(problemInfo));
+    return {
+        found: true,
+        languageId,
+        codeFilePath,
+        repo: settings.repo,
+        branch: settings.branch
+    };
+}
 
 // Test connection to GitHub repository
 async function handleTestConnection(token, repo) {
@@ -491,37 +788,75 @@ function buildNotesMarkdown(problemInfo, notesText, timerValue, languageId) {
     return lines.join('\n');
 }
 
+// Fetch the user's private LeetCode notes via the GraphQL API as a fallback,
+// because the notes editor is not always mounted (e.g. when the Notes pane was
+// never opened the DOM scraping finds nothing).
+async function fetchLeetCodeNotes(titleSlug) {
+    try {
+        const response = await fetch('https://leetcode.com/graphql/', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                operationName: 'questionNote',
+                query: 'query questionNote($titleSlug: String!) {\n  question(titleSlug: $titleSlug) {\n    questionId\n    note\n  }\n}' +
+                    '\n    ',
+                variables: { titleSlug: titleSlug }
+            })
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        const note = data && data.data && data.data.question && data.data.question.note;
+        return (typeof note === 'string' && note.trim()) ? note.trim() : null;
+    } catch (e) {
+        return null;
+    }
+}
+
 // Save solution to GitHub
 async function handleSaveToGitHub(code, problemInfo, languageId, notesText, timerValue) {
     const settings = await getExtensionSettings();
-    
+
     if (!settings.token || !settings.repo) {
         throw new Error('GitHub token or repository not configured in settings.');
     }
-    
+
     // Format stable per-problem paths so repeated submissions update the same files.
-    const sanitizedTitle = problemInfo.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '') || 'unknown-problem';
-    
+    const { sanitizedTitle, directory: problemDir } = getProblemDirectory(problemInfo);
+
+    // Fetch private notes when the notes editor was not mounted on the page.
+    let finalNotesText = notesText || null;
+    if (settings.saveNotesAndTimer && !finalNotesText && problemInfo.title) {
+        finalNotesText = await fetchLeetCodeNotes(problemInfo.title);
+    }
+
     // --- Commit 1: Code file ---
-    const ext = getExtensionForLanguage(languageId);
-    const folderPrefix = settings.folder ? `${settings.folder}/` : '';
-    const codeFilePath = `${folderPrefix}${sanitizedTitle}/${sanitizedTitle}${ext}`;
+    const folderPrefix = getParentFolderPrefix(settings);
+    const codeFilePath = getProblemFilePath(problemInfo, languageId, settings);
     const codeCommitMessage = `Save LeetCode solution: ${problemInfo.title} (${problemInfo.timestamp || new Date().toISOString()})`;
-    
+
     const codeResult = await commitFileToGitHub(settings, codeFilePath, code, codeCommitMessage);
-    
+
     // --- Commit 2: Notes/Timer markdown file (optional) ---
     let notesResult = null;
+    let notesFilePath = null;
     if (settings.saveNotesAndTimer) {
-        const notesMarkdown = buildNotesMarkdown(problemInfo, notesText, timerValue, languageId);
-        const notesFilePath = `${folderPrefix}${sanitizedTitle}/${sanitizedTitle}-notes.md`;
+        const notesMarkdown = buildNotesMarkdown(problemInfo, finalNotesText, timerValue, languageId);
+        notesFilePath = `${folderPrefix}${problemDir}/${sanitizedTitle}-notes.md`;
         const notesCommitMessage = `Save notes for: ${problemInfo.title} (${problemInfo.timestamp || new Date().toISOString()})`;
-        
+
         notesResult = await commitFileToGitHub(settings, notesFilePath, notesMarkdown, notesCommitMessage);
     }
     
-    return { code: codeResult, notes: notesResult };
+    return {
+        code: codeResult,
+        notes: notesResult,
+        repo: settings.repo,
+        branch: settings.branch,
+        codeFilePath,
+        notesFilePath
+    };
 }

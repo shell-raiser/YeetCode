@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const githubBranchInput = document.getElementById('githubBranch');
     const githubFolderInput = document.getElementById('githubFolder');
     const saveNotesAndTimerInput = document.getElementById('saveNotesAndTimer');
+    const autoImportFromGitHubInput = document.getElementById('autoImportFromGitHub');
     const toggleToken = document.getElementById('toggleToken');
 
     const aiEnabledInput = document.getElementById('aiEnabled');
@@ -117,14 +118,14 @@ document.addEventListener('DOMContentLoaded', function() {
         'githubBranch',
         'githubFolder',
         'saveNotesAndTimer',
-        ...AI_SETTINGS_KEYS
+        ...AI_SETTINGS_KEYS,
+        'autoImportFromGitHub'
     ], function(items) {
         if (items.githubToken) githubTokenInput.value = items.githubToken;
         if (items.githubRepo) githubRepoInput.value = items.githubRepo;
         if (items.githubBranch) githubBranchInput.value = items.githubBranch;
         if (items.githubFolder) githubFolderInput.value = items.githubFolder;
         saveNotesAndTimerInput.checked = items.saveNotesAndTimer !== undefined ? items.saveNotesAndTimer : true;
-
         if (items.aiEndpoint) aiEndpointInput.value = items.aiEndpoint;
         if (items.aiApiKey) aiApiKeyInput.value = items.aiApiKey;
         if (items.aiModel) aiModelInput.value = items.aiModel;
@@ -135,6 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         renderConcepts(items.concepts);
         ensureSeedConcepts();
+        autoImportFromGitHubInput.checked = items.autoImportFromGitHub === true;
     });
 
     // Toggle token password visibility
@@ -236,7 +238,8 @@ document.addEventListener('DOMContentLoaded', function() {
             nudgeAtMinutes: clampInt(nudgeAtMinutesInput.value, 1, 180, 15),
             deadlineAtMinutes: clampInt(deadlineAtMinutesInput.value, 2, 360, 45),
             minHelpMinutes: clampInt(minHelpMinutesInput.value, 0, 180, 5),
-            concepts: collectConcepts()
+            concepts: collectConcepts(),
+            autoImportFromGitHub: autoImportFromGitHubInput.checked
         };
 
         if (settingsToSave.deadlineAtMinutes <= settingsToSave.nudgeAtMinutes) {

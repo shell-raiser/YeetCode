@@ -26,7 +26,8 @@ global.chrome = {
           concepts: [
             { name: 'Graphs', level: 'low' },
             { name: 'Dynamic Programming', level: 'not studied' }
-          ]
+          ],
+          autoImportFromGitHub: true
         });
       }),
       set: jest.fn((items, callback) => {
@@ -63,6 +64,7 @@ describe('Options Page', () => {
       <input type="text" id="githubBranch" value="main">
       <input type="text" id="githubFolder">
       <input type="checkbox" id="saveNotesAndTimer" checked>
+      <input type="checkbox" id="autoImportFromGitHub">
       <button id="test">Test Connection</button>
       <button id="save">Save Settings</button>
       <div id="status"></div>
@@ -98,7 +100,8 @@ describe('Options Page', () => {
       'nudgeAtMinutes',
       'deadlineAtMinutes',
       'minHelpMinutes',
-      'concepts'
+      'concepts',
+      'autoImportFromGitHub'
     ], expect.any(Function));
 
     expect(document.getElementById('githubToken').value).toBe('ghp_savedtoken');
@@ -106,7 +109,6 @@ describe('Options Page', () => {
     expect(document.getElementById('githubBranch').value).toBe('saved-branch');
     expect(document.getElementById('githubFolder').value).toBe('leetcode');
     expect(document.getElementById('saveNotesAndTimer').checked).toBe(true);
-
     expect(document.getElementById('aiEnabled').checked).toBe(true);
     expect(document.getElementById('aiEndpoint').value).toBe('https://ai.example.com/v1/chat/completions');
     expect(document.getElementById('aiApiKey').value).toBe('sk_savedkey');
@@ -114,6 +116,7 @@ describe('Options Page', () => {
     expect(document.getElementById('nudgeAtMinutes').value).toBe('15');
     expect(document.getElementById('deadlineAtMinutes').value).toBe('45');
     expect(document.getElementById('minHelpMinutes').value).toBe('5');
+    expect(document.getElementById('autoImportFromGitHub').checked).toBe(true);
 
     const conceptRows = document.querySelectorAll('#conceptsList .concept-row');
     expect(conceptRows.length).toBe(2);
@@ -145,6 +148,7 @@ describe('Options Page', () => {
     document.dispatchEvent(new Event('DOMContentLoaded'));
 
     expect(document.getElementById('saveNotesAndTimer').checked).toBe(false);
+    expect(document.getElementById('autoImportFromGitHub').checked).toBe(false);
   });
 
   // ─────────────────────────────────────────────────────
@@ -188,6 +192,7 @@ describe('Options Page', () => {
     const repoInput = document.getElementById('githubRepo');
     const branchInput = document.getElementById('githubBranch');
     const notesToggle = document.getElementById('saveNotesAndTimer');
+    const autoImportToggle = document.getElementById('autoImportFromGitHub');
     const saveButton = document.getElementById('save');
     const statusDiv = document.getElementById('status');
 
@@ -207,6 +212,7 @@ describe('Options Page', () => {
     document.querySelectorAll('#conceptsList .concept-remove')[1].dispatchEvent(new Event('click'));
     const firstConcept = document.querySelector('#conceptsList .concept-row');
     firstConcept.querySelector('.concept-level').value = 'high';
+    autoImportToggle.checked = true;
 
     saveButton.dispatchEvent(new Event('click'));
 
@@ -223,25 +229,34 @@ describe('Options Page', () => {
       nudgeAtMinutes: 10,
       deadlineAtMinutes: 60,
       minHelpMinutes: 0,
-      concepts: [{ name: 'Graphs', level: 'high' }]
+      concepts: [{ name: 'Graphs', level: 'high' }],
+      autoImportFromGitHub: true
     }, expect.any(Function));
 
     expect(statusDiv.textContent).toBe('Settings saved successfully!');
     expect(statusDiv.className).toContain('success');
   });
 
-  test('should not save values as numbers when input is invalid', () => {
+  test('should clamp invalid AI timing values without converting them to strings', () => {
     const saveButton = document.getElementById('save');
 
     document.getElementById('githubToken').value = 'ghp_token';
     document.getElementById('githubRepo').value = 'owner/repo';
     document.getElementById('nudgeAtMinutes').value = '999';
-    document.getElementById('deadlineAtMinutes').value = 'abc';
+    document.getElementById('deadlineAtMinutes').value = '360';
 
     saveButton.dispatchEvent(new Event('click'));
 
-    const setCall = chrome.storage.sync.set.mock.calls[0][0];
+    let setCall = chrome.storage.sync.set.mock.calls[0][0];
     expect(setCall.nudgeAtMinutes).toBe(180);
+    expect(setCall.deadlineAtMinutes).toBe(360);
+
+    document.getElementById('nudgeAtMinutes').value = '15';
+    document.getElementById('deadlineAtMinutes').value = 'abc';
+    saveButton.dispatchEvent(new Event('click'));
+
+    setCall = chrome.storage.sync.set.mock.calls[1][0];
+    expect(setCall.nudgeAtMinutes).toBe(15);
     expect(setCall.deadlineAtMinutes).toBe(45);
   });
 

@@ -60,6 +60,13 @@ document.body.innerHTML = `
 require('../background.js');
 require('../contentScript.js');
 
+// Let the async lookup chain settle when fake timers are in use.
+async function flushMicrotasks(times = 6) {
+  for (let i = 0; i < times; i++) {
+    await Promise.resolve();
+  }
+}
+
 describe('YeetCode Extension', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -298,11 +305,123 @@ describe('YeetCode Extension', () => {
       });
 
       const openLink = document.getElementById('leetcode-open-github');
-      expect(openLink.textContent).toBe('Open in GitHub');
+      expect(openLink.textContent.trim()).toBe('Open');
       expect(openLink.target).toBe('_blank');
       expect(openLink.href).toContain('/blob/main/two-sum/two-sum.py');
+      expect(openLink.querySelector('img').src).toContain('/GITHUB_LOGO.svg');
       expect(document.getElementById('leetcode-github-link')).toBeNull();
-      expect(document.getElementById('leetcode-import-github').textContent).toBe('Import from GitHub');
+      const importButton = document.getElementById('leetcode-import-github');
+      expect(importButton.textContent.trim()).toBe('Import');
+      expect(importButton.querySelector('svg').getAttribute('aria-hidden')).toBe('true');
+    });
+
+    test('should put Yeet and GitHub actions in the same row', () => {
+      document.body.innerHTML = `
+        <div class="flex">
+          <div class="group"><div><button data-testid="judge-button">Submit</button></div></div>
+        </div>
+        <div class="monaco-editor"></div>
+      `;
+
+      window.LeetCodeCodeSaver.scanPageForSaverHooks();
+      window.LeetCodeCodeSaver.showGitHubSolutionActions({
+        repo: 'owner/repo',
+        branch: 'main',
+        codeFilePath: 'two-sum/two-sum.py'
+      });
+
+      const actionsRow = document.getElementById('leetcode-actions-row');
+      expect(actionsRow).not.toBeNull();
+      expect(actionsRow.contains(document.getElementById('leetcode-saver-button'))).toBe(true);
+      expect(actionsRow.contains(document.getElementById('leetcode-open-github'))).toBe(true);
+      expect(actionsRow.contains(document.getElementById('leetcode-import-github'))).toBe(true);
+    });
+
+    test('should only auto-check once when LeetCode swaps to the /description/ URL', async () => {
+      jest.useFakeTimers();
+      window.history.replaceState({}, '', '/problems/climbing-stairs-ii/');
+      document.body.innerHTML = `
+        <div class="flex">
+          <div class="group"><div><button data-testid="judge-button">Submit</button></div></div>
+        </div>
+        <div class="monaco-editor"></div>
+      `;
+      window.monaco = {
+        editor: {
+          getEditors: () => [{
+            getValue: () => 'class Solution:',
+            getModel: () => ({ getLanguageId: () => 'python3', getValue: () => 'class Solution:' })
+          }]
+        }
+      };
+
+      const initialSendCount = chrome.runtime.sendMessage.mock.calls
+        .filter(([msg]) => msg && msg.action === 'checkGitHubSolution').length;
+
+      window.LeetCodeCodeSaver.scanPageForSaverHooks();
+      jest.advanceTimersByTime(600);
+      await flushMicrotasks();
+      const afterFirstScan = chrome.runtime.sendMessage.mock.calls
+        .filter(([msg]) => msg && msg.action === 'checkGitHubSolution').length;
+
+      window.history.replaceState({}, '', '/problems/climbing-stairs-ii/description/');
+      window.LeetCodeCodeSaver.scanPageForSaverHooks();
+      jest.advanceTimersByTime(600);
+      await flushMicrotasks();
+      const afterUrlVariant = chrome.runtime.sendMessage.mock.calls
+        .filter(([msg]) => msg && msg.action === 'checkGitHubSolution').length;
+
+      jest.useRealTimers();
+
+      expect(afterFirstScan).toBe(initialSendCount + 1);
+      expect(afterUrlVariant).toBe(afterFirstScan);
+    });
+
+    test('should re-attach the cached GitHub actions after a pane remount', () => {
+      window.history.replaceState({}, '', '/problems/two-sum/');
+      document.body.innerHTML = `
+        <div class="flex">
+          <div class="group"><div><button data-testid="judge-button">Submit</button></div></div>
+        </div>
+        <div class="monaco-editor"></div>
+      `;
+
+      const result = {
+        repo: 'owner/repo',
+        branch: 'main',
+        codeFilePath: 'two-sum/two-sum.py'
+      };
+
+      // Let the module observe this problem before caching the lookup result.
+      window.LeetCodeCodeSaver.scanPageForSaverHooks();
+
+      // Simulate the cached lookup result the content script keeps around.
+      window.LeetCodeCodeSaver.showGitHubSolutionActions(result);
+      expect(document.getElementById('leetcode-open-github')).not.toBeNull();
+
+      // LeetCode wipes the submit row when the user switches panes.
+      document.body.innerHTML = `
+        <div class="flex">
+          <div class="group"><div><button data-testid="judge-button">Submit</button></div></div>
+        </div>
+        <div class="monaco-editor"></div>
+      `;
+
+      const sendCountBeforeRescan = chrome.runtime.sendMessage.mock.calls
+        .filter(([msg]) => msg && msg.action === 'checkGitHubSolution').length;
+
+      window.history.replaceState({}, '', '/problems/two-sum/description/');
+      window.LeetCodeCodeSaver.scanPageForSaverHooks();
+
+      expect(document.getElementById('leetcode-open-github')).not.toBeNull();
+      expect(document.getElementById('leetcode-import-github')).not.toBeNull();
+      expect(document.getElementById('leetcode-actions-row').contains(document.getElementById('leetcode-saver-button'))).toBe(true);
+      expect(document.getElementById('leetcode-open-github').href)
+        .toContain('/blob/main/two-sum/two-sum.py');
+
+      const sendCountAfterRescan = chrome.runtime.sendMessage.mock.calls
+        .filter(([msg]) => msg && msg.action === 'checkGitHubSolution').length;
+      expect(sendCountAfterRescan).toBe(sendCountBeforeRescan);
     });
   });
 

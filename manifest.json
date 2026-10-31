@@ -39,7 +39,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["pageBridge.js", "catcodeSmall.svg"],
+      "resources": ["pageBridge.js", "catcodeSmall.svg", "GITHUB_LOGO.svg"],
       "matches": ["*://leetcode.com/*"]
     }
   ]

@@ -131,28 +131,77 @@ function buildAiRequestMessages(aiSettings, request) {
     return messages;
 }
 
-// Call the configured OpenAI-compatible chat completion endpoint
+function isGeminiEndpoint(endpoint) {
+    try {
+        return new URL(endpoint).hostname === 'generativelanguage.googleapis.com';
+    } catch (error) {
+        return false;
+    }
+}
+
+function getGeminiRequest(endpoint, apiKey, model, messages) {
+    const url = new URL(endpoint);
+    const path = url.pathname.replace(/\/+$/, '');
+    const modelName = model.replace(/^models\//, '');
+    url.pathname = path.endsWith('/interactions') ? path : `${path}/interactions`;
+    url.search = '';
+    url.hash = '';
+
+    return {
+        url: url.href,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-goog-api-key': apiKey,
+            'Api-Revision': '2026-05-20'
+        },
+        body: {
+            model: modelName,
+            input: messages.map((message) => {
+                const role = message.role === 'system'
+                    ? 'SYSTEM INSTRUCTIONS'
+                    : message.role.toUpperCase();
+                return `${role}:\n${message.content}`;
+            }).join('\n\n')
+        }
+    };
+}
+
+// Call either Google's Gemini Interactions API or an OpenAI-compatible chat endpoint.
 async function callAiChatCompletion(aiSettings, request) {
-    const body = {
+    const messages = buildAiRequestMessages(aiSettings, request);
+    const isGemini = isGeminiEndpoint(aiSettings.aiEndpoint);
+    if (isGemini && !aiSettings.aiModel) {
+        throw new Error('Select a Gemini model in the extension options.');
+    }
+    const openAiBody = {
         model: aiSettings.aiModel || 'gpt-4o-mini',
-        messages: buildAiRequestMessages(aiSettings, request),
+        messages,
         temperature: 0.4
     };
+    const geminiRequest = isGemini
+        ? getGeminiRequest(aiSettings.aiEndpoint, aiSettings.aiApiKey, aiSettings.aiModel, messages)
+        : null;
+    const requestUrl = geminiRequest ? geminiRequest.url : aiSettings.aiEndpoint;
+    const requestBody = geminiRequest ? geminiRequest.body : openAiBody;
+    const requestHeaders = geminiRequest
+        ? geminiRequest.headers
+        : {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${aiSettings.aiApiKey}`
+        };
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     let response;
     try {
-        response = await fetch(aiSettings.aiEndpoint, {
+        const fetchOptions = {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${aiSettings.aiApiKey}`
-            },
-            body: JSON.stringify(body),
+            headers: requestHeaders,
+            body: JSON.stringify(requestBody),
             signal: controller.signal
-        });
+        };
+        response = await fetch(requestUrl, fetchOptions);
     } catch (error) {
         if (error && error.name === 'AbortError') {
             throw new Error('AI request timed out after 60 seconds.');
@@ -169,6 +218,16 @@ async function callAiChatCompletion(aiSettings, request) {
             errMsg = errorData.error && errorData.error.message ? errorData.error.message : (errorData.message || errMsg);
         } catch (e) {
             // Ignore parse failure, use generic message
+        }
+        if (isGemini) {
+            console.error('[YeetCode] Gemini chat request failed', {
+                endpoint: new URL(requestUrl).origin + new URL(requestUrl).pathname,
+                authMethod: isGemini
+                    ? 'X-goog-api-key header + Api-Revision: 2026-05-20'
+                    : 'Bearer authorization',
+                status: response.status,
+                error: errMsg
+            });
         }
         if (response.status === 401) {
             throw new Error(`Unauthorized: Check your AI API key (${errMsg}).`);
@@ -187,10 +246,19 @@ async function callAiChatCompletion(aiSettings, request) {
         throw new Error('AI endpoint returned a non-JSON response. Check the endpoint URL.');
     }
 
-    const choices = Array.isArray(data.choices) ? data.choices : [];
-    const content = choices[0] && choices[0].message && typeof choices[0].message.content === 'string'
-        ? choices[0].message.content
-        : null;
+    const content = isGemini
+        ? (Array.isArray(data.outputs)
+            ? data.outputs
+                .filter((output) => output && output.type === 'text' && typeof output.text === 'string')
+                .map((output) => output.text)
+                .join('')
+            : null)
+        : (() => {
+            const choices = Array.isArray(data.choices) ? data.choices : [];
+            return choices[0] && choices[0].message && typeof choices[0].message.content === 'string'
+                ? choices[0].message.content
+                : null;
+        })();
 
     if (!content) {
         throw new Error('AI response did not contain any message content.');

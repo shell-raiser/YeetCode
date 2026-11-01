@@ -1,5 +1,5 @@
 // YeetCode Content Script
-// Handles UI modification, Monaco editor extraction, submission tracking, notes/timer scraping, and messaging
+// Handles UI modification, Monaco editor extraction, submission tracking, notes, solve timing, and messaging
 
 let isSubmitting = false;
 let githubLookupTimer = null;
@@ -106,6 +106,7 @@ function scanPageForSaverHooks() {
     try {
         // 0. Track SPA navigation between problems for the AI helper session timer
         updateAiSessionForUrl();
+        syncSolveTimerDisplay();
 
         // 1. Inject our custom manual button if it doesn't exist
         if (!document.getElementById('leetcode-saver-button')) {
@@ -796,33 +797,64 @@ function collectNoteCandidates(value, candidates) {
 }
 
 function getTimerValue() {
-    const timerSelectors = [
-        '[class*="timer" i]',
-        '[id*="timer" i]',
-        '[class*="clock" i]',
-        '[id*="clock" i]',
-        '[data-testid*="timer" i]'
-    ];
-    
-    for (const selector of timerSelectors) {
-        const elements = document.querySelectorAll(selector);
-        for (const el of elements) {
-            const text = el.textContent.trim();
-            if (/^\d{2}:\d{2}(:\d{2})?$/.test(text)) {
-                return text;
-            }
-        }
+    if (!AI_HELPER.settingsLoaded || !AI_HELPER.settings.solveTimerEnabled || AI_HELPER.sessionStartMs === null) {
+        return null;
     }
-    
-    const allTextElements = document.querySelectorAll('span, div, p, button');
-    for (const el of allTextElements) {
-        const text = el.textContent.trim();
-        if (/^\d{2}:\d{2}(:\d{2})?$/.test(text)) {
-            return text;
-        }
+
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - AI_HELPER.sessionStartMs) / 1000));
+    const hours = Math.floor(elapsedSeconds / 3600);
+    const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+    const seconds = elapsedSeconds % 60;
+    return hours > 0
+        ? `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+        : `${String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function syncSolveTimerDisplay() {
+    const timerDisplayId = 'yc-solve-timer';
+    const timerDisplay = document.getElementById(timerDisplayId);
+    const timerValue = getTimerValue();
+    const nativeTimer = document.querySelector('[aria-label="Timer"]');
+
+    if (!timerValue) {
+        if (timerDisplay) timerDisplay.remove();
+        document.querySelectorAll('[data-yc-timer-hidden="true"]').forEach((element) => {
+            element.style.display = element.dataset.ycOriginalDisplay || '';
+            delete element.dataset.ycOriginalDisplay;
+            delete element.dataset.ycTimerHidden;
+        });
+        return;
     }
-    
-    return null;
+
+    let display = timerDisplay;
+    if (!display) {
+        display = document.createElement('div');
+        display.id = timerDisplayId;
+        display.setAttribute('role', 'timer');
+        display.setAttribute('aria-label', 'YeetCode elapsed solve time');
+        display.title = 'Elapsed solve time tracked by YeetCode';
+    }
+
+    if (nativeTimer && nativeTimer.parentElement) {
+        const nativeTimerContainer = nativeTimer.parentElement;
+        if (nativeTimerContainer.dataset.ycTimerHidden !== 'true') {
+            nativeTimerContainer.dataset.ycOriginalDisplay = nativeTimerContainer.style.display;
+            nativeTimerContainer.dataset.ycTimerHidden = 'true';
+        }
+        nativeTimerContainer.style.setProperty('display', 'none', 'important');
+        if (display.parentElement !== nativeTimerContainer.parentElement) {
+            display.className = 'flex h-8 flex-none items-center text-sd-muted-foreground';
+            display.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:0 10px;font-variant-numeric:tabular-nums;white-space:nowrap;';
+            nativeTimerContainer.parentElement.insertBefore(display, nativeTimerContainer);
+        }
+    } else if (!display.isConnected) {
+        display.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:99997;padding:8px 10px;border-radius:6px;background:#1f2937;color:#fff;font:12px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-variant-numeric:tabular-nums;';
+        document.body.appendChild(display);
+    }
+
+    if (display.textContent !== timerValue) {
+        display.textContent = timerValue;
+    }
 }
 
 function showGitHubLink(result) {
@@ -1028,6 +1060,7 @@ Object.assign(window.LeetCodeCodeSaver, {
     getCodeAndLanguageFromPage,
     getNotesValue,
     getTimerValue,
+    syncSolveTimerDisplay,
     scanPageForSaverHooks,
     showGitHubLink,
     showGitHubSolutionActions,
@@ -1042,6 +1075,7 @@ Object.assign(window.LeetCodeCodeSaver, {
 
 const AI_DEFAULT_SETTINGS = {
     aiEnabled: false,
+    solveTimerEnabled: true,
     nudgeAtMinutes: 15,
     deadlineAtMinutes: 45,
     minHelpMinutes: 5
@@ -1061,11 +1095,8 @@ const AI_HELPER = {
 };
 
 function getProblemSlug() {
-    const pathParts = window.location.pathname.split('/');
-    if (pathParts.length >= 3 && pathParts[1] === 'problems') {
-        return pathParts[2] || null;
-    }
-    return null;
+    const parsed = parseProblemPath(window.location.pathname);
+    return parsed ? parsed.title : null;
 }
 
 function formatMinutesLabel(ms) {
@@ -1078,12 +1109,14 @@ function formatMinutesLabel(ms) {
 function loadAiSettings(callback) {
     chrome.storage.sync.get([
         'aiEnabled',
+        'solveTimerEnabled',
         'nudgeAtMinutes',
         'deadlineAtMinutes',
         'minHelpMinutes'
     ], function(items) {
         AI_HELPER.settings = {
             aiEnabled: items.aiEnabled !== undefined ? items.aiEnabled : AI_DEFAULT_SETTINGS.aiEnabled,
+            solveTimerEnabled: items.solveTimerEnabled !== undefined ? items.solveTimerEnabled : AI_DEFAULT_SETTINGS.solveTimerEnabled,
             nudgeAtMinutes: clampAiInt(items.nudgeAtMinutes, 1, 180, AI_DEFAULT_SETTINGS.nudgeAtMinutes),
             deadlineAtMinutes: clampAiInt(items.deadlineAtMinutes, 2, 360, AI_DEFAULT_SETTINGS.deadlineAtMinutes),
             minHelpMinutes: clampAiInt(items.minHelpMinutes, 0, 180, AI_DEFAULT_SETTINGS.minHelpMinutes)
@@ -1116,14 +1149,31 @@ function updateAiSessionForUrl() {
     AI_HELPER.currentSlug = slug;
     resetAiSession(slug);
 
-    if (!AI_HELPER.tickHandle) {
+    if (AI_HELPER.settings.solveTimerEnabled && !AI_HELPER.tickHandle) {
         AI_HELPER.tickHandle = setInterval(() => {
             aiHelperTick(Date.now());
-        }, 2000);
+            syncSolveTimerDisplay();
+        }, 1000);
     }
 }
 
 function resetAiSession(slug) {
+    if (!AI_HELPER.settings.solveTimerEnabled) {
+        AI_HELPER.sessionStartMs = null;
+        try {
+            sessionStorage.removeItem(aiSessionStorageKey(slug));
+        } catch (e) { /* sessionStorage unavailable */ }
+        AI_HELPER.solvedOnce = false;
+        AI_HELPER.nudgeCheckDone = false;
+        AI_HELPER.deadlineNotified = false;
+        AI_HELPER.history = [];
+        removeAiNudgeOffer();
+        setAiPanelSubtitle(slug);
+        refreshAiAskButtonState();
+        syncSolveTimerDisplay();
+        return;
+    }
+
     let sessionStartMs;
     try {
         const stored = sessionStorage.getItem(aiSessionStorageKey(slug));
@@ -1148,11 +1198,13 @@ function resetAiSession(slug) {
     removeAiNudgeOffer();
     setAiPanelSubtitle(slug);
     refreshAiAskButtonState();
+    syncSolveTimerDisplay();
 }
 
 function aiHelperTick(now) {
     if (!AI_HELPER.settingsLoaded) return;
     if (!AI_HELPER.settings.aiEnabled) return;
+    if (!AI_HELPER.settings.solveTimerEnabled) return;
 
     const slug = getProblemSlug();
     if (!slug || slug !== AI_HELPER.currentSlug) {
@@ -1425,9 +1477,11 @@ function ensureAiPanel() {
 
     const panel = document.createElement('div');
     panel.id = 'yc-ai-panel';
+    panel.setAttribute('role', 'tabpanel');
+    panel.setAttribute('aria-labelledby', 'yc-ai-button');
     panel.style.cssText = [
-        'position:fixed', 'right:16px', 'bottom:16px', 'z-index:99998',
-        'width:340px', 'max-width:calc(100vw - 32px)', 'height:420px',
+        'position:fixed', 'right:16px', 'top:50%', 'transform:translateY(-50%)', 'z-index:99998',
+        'width:360px', 'max-width:calc(100vw - 32px)', 'height:min(620px, calc(100vh - 32px))',
         'display:none', 'flex-direction:column',
         'background:#181818f2', 'backdrop-filter:blur(16px)',
         'border:1px solid rgba(255,255,255,0.12)', 'border-radius:12px',
@@ -1507,6 +1561,12 @@ function toggleAiPanel(forceOpen) {
     const panel = ensureAiPanel();
     const shouldOpen = forceOpen !== undefined ? forceOpen : panel.style.display !== 'flex';
     panel.style.display = shouldOpen ? 'flex' : 'none';
+    const tab = document.getElementById('yc-ai-button');
+    if (tab) {
+        tab.setAttribute('aria-selected', shouldOpen ? 'true' : 'false');
+        tab.classList.toggle('flexlayout__tab_button--selected', shouldOpen);
+        tab.classList.toggle('flexlayout__tab_button--unselected', !shouldOpen);
+    }
     if (shouldOpen) {
         setAiPanelSubtitle(AI_HELPER.currentSlug);
         refreshAiAskButtonState();
@@ -1629,57 +1689,106 @@ async function submitAiMessage() {
 // ── AI Helper button (always-available "ask for help" entry point) ──
 
 function ensureAiButton() {
-    if (document.getElementById('yc-ai-button')) return;
     if (!AI_HELPER.settingsLoaded || !AI_HELPER.settings.aiEnabled) return;
 
-    const saverButton = document.getElementById('leetcode-saver-button');
-    const submitButton = findSubmitButton();
-    let anchor = null;
+    const nativeTabBar = document.querySelector(
+        '#description_tabbar_outer .flexlayout__tabset_tabbar_inner_tab_container_top'
+    ) || document.querySelector(
+        '#description_tabbar_outer .flexlayout__tabset_tabbar_inner_tab_container'
+    );
+    let aiButton = document.getElementById('yc-ai-button');
+    if (!aiButton) aiButton = buildAiButton();
 
-    if (saverButton && saverButton.parentNode) {
-        anchor = saverButton;
-    } else if (submitButton && submitButton.parentNode && submitButton.parentNode.parentNode) {
-        const submitWrapper = submitButton.parentNode;
-        const flexContainer = submitWrapper.parentNode;
-        if (flexContainer && flexContainer.insertBefore) {
-            const aiButton = buildAiButton();
-            flexContainer.insertBefore(aiButton, submitWrapper.nextSibling);
+    if (nativeTabBar) {
+        aiButton.className = 'flexlayout__tab_button flexlayout__tab_button_top flexlayout__tab_button--unselected';
+        aiButton.style.cssText = 'height:100%;padding:0 12px;border:0;background:transparent;color:inherit;cursor:pointer;font:inherit;';
+        const content = aiButton.firstElementChild;
+        if (content) {
+            content.className = 'flexlayout__tab_button_content';
+            const label = content.firstElementChild;
+            if (label) label.className = 'relative flex items-center gap-1 overflow-hidden text-sm capitalize';
         }
-        refreshAiAskButtonState();
-        return;
-    } else {
-        return;
-    }
+        aiButton.setAttribute('role', 'tab');
+        aiButton.setAttribute('aria-label', 'AI Chat');
 
-    const aiButton = buildAiButton();
-    anchor.parentNode.insertBefore(aiButton, anchor.nextSibling);
+        const divider = document.createElement('div');
+        divider.id = 'yc-ai-tab-divider';
+        divider.className = 'flexlayout__tabset_tab_divider';
+        if (aiButton.parentElement !== nativeTabBar) {
+            const oldParent = aiButton.parentElement;
+            aiButton.remove();
+            const oldDivider = document.getElementById('yc-ai-tab-divider');
+            if (oldDivider) oldDivider.remove();
+            if (oldParent && oldParent.id === 'yc-ai-tab-list') oldParent.remove();
+            const descriptionTab = nativeTabBar.querySelector('#description_tab')
+                ?.closest('.flexlayout__tab_button');
+            let reference = descriptionTab && descriptionTab.nextElementSibling;
+            if (reference && reference.classList.contains('flexlayout__tabset_tab_divider')) {
+                reference = reference.nextElementSibling;
+            }
+            if (reference) {
+                nativeTabBar.insertBefore(divider, reference);
+                nativeTabBar.insertBefore(aiButton, divider);
+            } else {
+                nativeTabBar.append(aiButton, divider);
+            }
+        }
+    } else {
+        aiButton.className = '';
+        aiButton.style.cssText = [
+            'padding:12px 9px',
+            'background:#2d2d2d', 'color:#f5f5f5',
+            'border:1px solid rgba(255,255,255,0.15)', 'border-right:none', 'border-radius:8px 0 0 8px',
+            'cursor:pointer', 'font-size:14px', 'font-weight:bold',
+            'transition:background-color 0.2s',
+            'display:inline-flex', 'align-items:center', 'justify-content:center',
+            'writing-mode:vertical-rl',
+            'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif'
+        ].join(';');
+        let tabList = document.getElementById('yc-ai-tab-list');
+        if (!tabList) {
+            tabList = document.createElement('div');
+            tabList.id = 'yc-ai-tab-list';
+            tabList.setAttribute('role', 'tablist');
+            tabList.setAttribute('aria-label', 'YeetCode tools');
+            tabList.style.cssText = 'position:fixed;right:0;top:42%;z-index:99997;';
+            tabList.appendChild(aiButton);
+            document.body.appendChild(tabList);
+        }
+    }
     refreshAiAskButtonState();
 }
 
 function buildAiButton() {
     const aiButton = document.createElement('button');
     aiButton.id = 'yc-ai-button';
-    aiButton.textContent = '🤖 AI Help';
-    aiButton.style.cssText = [
-        'margin-left:8px', 'padding:6px 12px',
-        'background:#2d2d2d', 'color:#f5f5f5',
-        'border:1px solid rgba(255,255,255,0.15)', 'border-radius:4px',
-        'cursor:pointer', 'font-size:14px', 'font-weight:bold',
-        'transition:background-color 0.2s',
-        'display:inline-flex', 'align-items:center', 'justify-content:center',
-        'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif'
-    ].join(';');
+    aiButton.type = 'button';
+    const content = document.createElement('div');
+    content.className = 'flexlayout__tab_button_content';
+    const label = document.createElement('div');
+    label.className = 'relative flex items-center gap-1 overflow-hidden text-sm capitalize';
+    label.textContent = 'AI Chat';
+    content.appendChild(label);
+    aiButton.appendChild(content);
+    aiButton.setAttribute('role', 'tab');
+    aiButton.setAttribute('aria-selected', 'false');
+    aiButton.setAttribute('aria-controls', 'yc-ai-panel');
 
     aiButton.addEventListener('mouseover', function() {
-        aiButton.style.backgroundColor = '#3d3d3d';
+        if (!aiButton.classList.contains('flexlayout__tab_button')) {
+            aiButton.style.backgroundColor = '#3d3d3d';
+        }
     });
     aiButton.addEventListener('mouseout', function() {
-        aiButton.style.backgroundColor = '#2d2d2d';
+        if (!aiButton.classList.contains('flexlayout__tab_button')) {
+            aiButton.style.backgroundColor = '#2d2d2d';
+        }
     });
 
     aiButton.addEventListener('click', function() {
         const elapsedMs = AI_HELPER.sessionStartMs !== null ? Date.now() - AI_HELPER.sessionStartMs : 0;
-        if (elapsedMs < AI_HELPER.settings.minHelpMinutes * 60000 && !aiHasAcceptedSolution()) {
+        if (AI_HELPER.settings.solveTimerEnabled && AI_HELPER.sessionStartMs !== null &&
+            elapsedMs < AI_HELPER.settings.minHelpMinutes * 60000 && !aiHasAcceptedSolution()) {
             showAiToast(`AI Helper: asking is locked for the first ${AI_HELPER.settings.minHelpMinutes} minutes — ${formatMinutesLabel(AI_HELPER.settings.minHelpMinutes * 60000 - elapsedMs)} left.`, 'error');
             return;
         }
@@ -1695,7 +1804,9 @@ function refreshAiAskButtonState() {
     const aiButton = document.getElementById('yc-ai-button');
     if (!aiButton) return;
 
-    const elapsedMs = AI_HELPER.sessionStartMs !== null && AI_HELPER.currentSlug ? Date.now() - AI_HELPER.sessionStartMs : null;
+    const elapsedMs = AI_HELPER.settings.solveTimerEnabled && AI_HELPER.sessionStartMs !== null && AI_HELPER.currentSlug
+        ? Date.now() - AI_HELPER.sessionStartMs
+        : null;
     const minHelpMs = AI_HELPER.settings.minHelpMinutes * 60000;
 
     if (elapsedMs !== null && elapsedMs < minHelpMs) {
@@ -1711,34 +1822,49 @@ function refreshAiAskButtonState() {
 
 loadAiSettings(() => {
     updateAiSessionForUrl();
+    ensureAiButton();
 });
 
 // Settings changed in the options page: storage.onChanged reaches content
 // scripts without any extra permission, so use it as the primary signal.
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'sync') return;
-    const AI_KEYS = ['aiEnabled', 'nudgeAtMinutes', 'deadlineAtMinutes', 'minHelpMinutes'];
+    const AI_KEYS = ['aiEnabled', 'solveTimerEnabled', 'nudgeAtMinutes', 'deadlineAtMinutes', 'minHelpMinutes'];
     const relevant = AI_KEYS.some((key) => Object.prototype.hasOwnProperty.call(changes, key));
     if (!relevant) return;
 
-    reloadAiSessionSettings();
+    const restartSession = ['aiEnabled', 'solveTimerEnabled'].some((key) =>
+        Object.prototype.hasOwnProperty.call(changes, key)
+    );
+    reloadAiSessionSettings(restartSession);
 });
 
-function reloadAiSessionSettings() {
+function reloadAiSessionSettings(restartSession = true) {
     loadAiSettings(() => {
         removeAiNudgeOffer();
-        stopAiHelperTimers();
-        AI_HELPER.currentSlug = null;
-        updateAiSessionForUrl();
+        if (restartSession) {
+            stopAiHelperTimers();
+            AI_HELPER.currentSlug = null;
+            updateAiSessionForUrl();
+        } else {
+            refreshAiAskButtonState();
+        }
         const panel = document.getElementById('yc-ai-panel');
         if (panel && panel.style.display === 'flex') {
             appendAiMessage('system', 'Settings updated — AI Helper timing refreshed.');
         }
         if (!AI_HELPER.settings.aiEnabled) {
-            toggleAiPanel(false);
+            if (panel) toggleAiPanel(false);
             const aiButton = document.getElementById('yc-ai-button');
             if (aiButton) aiButton.remove();
+            const divider = document.getElementById('yc-ai-tab-divider');
+            if (divider) divider.remove();
+            const tabList = document.getElementById('yc-ai-tab-list');
+            if (tabList) tabList.remove();
+        } else {
+            ensureAiButton();
         }
+        syncSolveTimerDisplay();
     });
 }
 
@@ -1761,6 +1887,7 @@ Object.assign(window.LeetCodeCodeSaver, {
         ensureAiPanel,
         appendAiMessage,
         refreshAiAskButtonState,
+        reloadAiSessionSettings,
         removeAiNudgeOffer,
         getProblemStatement,
         collectAiContext

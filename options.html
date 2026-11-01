@@ -262,6 +262,19 @@
             box-shadow: 0 0 0 3px var(--input-focus-glow);
         }
 
+        #refreshAiModels {
+            flex: 0 0 42px;
+            padding: 8px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        #refreshAiModels:hover:not(:disabled) {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
         select option {
             background: var(--input-bg);
             color: var(--text-primary);
@@ -452,8 +465,9 @@
         <div class="card-separator"></div>
 
         <div class="form-group">
-            <label for="aiEndpoint">AI API Endpoint (OpenAI-compatible)</label>
-            <input type="text" id="aiEndpoint" placeholder="https://api.openai.com/v1/chat/completions">
+            <label for="aiEndpoint">AI API Endpoint</label>
+            <input type="text" id="aiEndpoint" placeholder="OpenAI-compatible URL or Gemini API base URL">
+            <p class="hint">Supports OpenAI-compatible chat endpoints and Google Gemini API bases such as https://generativelanguage.googleapis.com/v1beta/. Gemini chat uses the Interactions API.</p>
         </div>
 
         <div class="form-group">
@@ -464,13 +478,23 @@
         </div>
 
         <div class="form-group">
-            <label for="aiModel">Model</label>
-            <input type="text" id="aiModel" placeholder="e.g., gpt-4o-mini, claude-3-5-haiku, llama3">
+            <label for="aiModel">Model (focus to refresh)</label>
+            <div class="input-wrapper">
+                <select id="aiModel">
+                    <option value="">Select a model</option>
+                </select>
+                <button id="refreshAiModels" type="button" class="secondary-button" aria-label="Refresh AI models" title="Refresh models">↻</button>
+            </div>
+            <p class="hint" id="aiModelStatus" aria-live="polite">Focus the model list to refresh available models.</p>
         </div>
 
         <div class="card-separator"></div>
 
-        <div class="card-title">Solve Timer</div>
+        <div class="checkbox-row">
+            <input type="checkbox" id="solveTimerEnabled">
+            <label for="solveTimerEnabled">Replace LeetCode timer with YeetCode timer (independent of AI Helper)</label>
+        </div>
+        <p class="hint">When enabled, YeetCode's elapsed time replaces LeetCode's timer display and is saved as Time Taken in GitHub notes.</p>
         <div class="time-grid">
             <div class="form-group">
                 <label for="nudgeAtMinutes">Check-in (min)</label>
@@ -485,6 +509,7 @@
                 <input type="number" id="minHelpMinutes" min="0" max="180">
             </div>
         </div>
+        <p class="hint">One extension timer tracks time on the current problem. When AI Helper is enabled, it drives check-ins, the time limit, and the ask-after gate; it is also used for saved solve time. No separate timer is displayed.</p>
         <p class="hint">At the check-in time the AI reviews your direction and offers a nudge. At the time limit it suggests learning the solution. You can always decline.</p>
 
         <div class="card-separator"></div>
@@ -493,6 +518,7 @@
         <p class="hint">Tell the AI what you know. It won't steer you toward concepts you haven't studied unless the problem truly requires them.</p>
         <div class="concepts-list" id="conceptsList"></div>
         <button id="addConcept" class="add-concept" type="button">+ Add concept</button>
+        <p class="hint" id="aiAutoSaveStatus" aria-live="polite">AI settings are saved automatically as you edit them.</p>
     </div>
 
     <p class="footer-note">

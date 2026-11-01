@@ -47,17 +47,20 @@ A browser extension that allows you to save your LeetCode code and notes directl
 
 ## AI Helper
 
-Enable it in the options page. It is powered by any OpenAI-compatible chat completions endpoint (bring your own key and model), so your code and prompts only go to the provider you choose.
+Enable it in the options page. It supports OpenAI-compatible chat-completions endpoints and Google's Gemini Interactions API (bring your own key and model), so your code and prompts only go to the provider you choose.
 
 How the session works on each problem page:
 
 - **Check-in (default 15 min)**: the AI silently reviews your current code and the problem statement. If your direction looks right you get a quiet "keep going" toast; otherwise it offers a nudge, which you can always decline.
 - **Nudges**: accepted nudges use the Socratic method — the AI asks leading questions from *your* current code, style and variable names. It never hands you a complete solution.
 - **Time limit (default 45 min)**: the AI suggests moving on to learning the solution and can switch into a guided, step-by-step walkthrough.
-- **Ask-anytime**: an "AI Help" button next to the Yeet button opens a chat panel. The "Ask-after" setting (default 5 min) prevents rage-quitting into help too early — set it to 0 to disable the lock.
-- **Concept levels**: tell it what you've studied (Graphs, DP, Trees, … and at what level). The AI avoids topics you haven't learned unless the problem truly requires them, and then teaches the concept from first principles.
+- **Ask-anytime**: a persistent **AI Chat** tab is added to LeetCode's Description tab bar when it is available; selecting it opens the chat panel. The extension uses stable tab-bar selectors rather than LeetCode's generated tab IDs and reattaches after page rerenders. The "Ask-after" setting (default 5 min) prevents rage-quitting into help too early — set it to 0 to disable the lock.
+- **One solve timer**: when enabled, the extension replaces LeetCode's timer control with its own elapsed timer in the same toolbar location. That same per-problem elapsed value drives AI check-ins and is saved as **Time Taken** in GitHub notes. It is independently enabled from AI Helper.
+- **Model selection**: focus the model dropdown to refresh the models from the configured endpoint. OpenAI-compatible providers use `/models`; Gemini uses `/models` with Google's API-key header and lists Gemini models usable with Interactions. Gemini chat posts to `/interactions` with `X-goog-api-key`, `Api-Revision: 2026-05-20`, and an `input` prompt.
+- **Automatic settings save**: AI settings save to Chrome sync storage as you edit them, so closing the popup does not discard pasted values.
+- **Concept levels**: the default concept categories match the NeetCode 150 topic headings (Arrays & Hashing, Two Pointers, Sliding Window, and more). Set your experience level for each; the AI avoids topics you haven't learned unless the problem truly requires them.
 
-Timings, concept levels, endpoint and key are all configurable in the options page.
+Timings, concept levels, endpoint, key and model are configurable in the options page.
 
 > **Security Note**: the AI API key is stored in Chrome's sync storage like the GitHub token, and requests are sent directly from your browser to the endpoint you configure. No third-party server is involved.
 
@@ -68,12 +71,12 @@ The extension consists of four main components:
 1. **manifest.json** - Defines the extension's metadata, permissions, and content scripts
 2. **options.html/options.js** - Popup page for configuring GitHub settings, the AI Helper endpoint/key, Socratic nudge timings and concept experience levels
 3. **contentScript.js** - Main logic that runs on LeetCode pages:
-   - Adds the custom "Save to GitHub" button and the "AI Help" button
+   - Adds the custom "Save to GitHub" button and the persistent "AI Chat" tab
    - Retrieves code from LeetCode's editor
    - Gets problem information (title, URL, timestamp)
    - Fetches saved GitHub settings
    - Saves code to GitHub via GitHub API
-   - Runs the AI Helper session timer: timed direction checks, nudge offers, the solve-time limit notice and the Socratic chat panel
+   - Tracks one per-problem elapsed timer for saved solve time and AI timed nudges, when enabled
 4. **background.js** - Service worker that handles GitHub API calls and OpenAI-compatible AI requests (embedding the Socratic teaching rules and your concept levels in the system prompt)
 
 ## GitHub Personal Access Token

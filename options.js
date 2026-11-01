@@ -11,11 +11,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const aiEndpointInput = document.getElementById('aiEndpoint');
     const aiApiKeyInput = document.getElementById('aiApiKey');
     const aiModelInput = document.getElementById('aiModel');
+    const refreshAiModelsButton = document.getElementById('refreshAiModels');
+    const aiModelStatus = document.getElementById('aiModelStatus');
     const nudgeAtMinutesInput = document.getElementById('nudgeAtMinutes');
     const deadlineAtMinutesInput = document.getElementById('deadlineAtMinutes');
     const minHelpMinutesInput = document.getElementById('minHelpMinutes');
+    const solveTimerEnabledInput = document.getElementById('solveTimerEnabled');
     const conceptsList = document.getElementById('conceptsList');
     const addConceptButton = document.getElementById('addConcept');
+    const aiAutoSaveStatus = document.getElementById('aiAutoSaveStatus');
 
     const testButton = document.getElementById('test');
     const saveButton = document.getElementById('save');
@@ -27,6 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'aiEndpoint',
         'aiApiKey',
         'aiModel',
+        'solveTimerEnabled',
         'nudgeAtMinutes',
         'deadlineAtMinutes',
         'minHelpMinutes',
@@ -34,7 +39,28 @@ document.addEventListener('DOMContentLoaded', function() {
     ];
 
     const CONCEPT_LEVELS = ['not studied', 'low', 'medium', 'high'];
-    const DEFAULT_CONCEPTS = [{ name: 'Graphs', level: 'not studied' }, { name: 'Dynamic Programming', level: 'not studied' }, { name: 'Trees', level: 'not studied' }, { name: 'Greedy', level: 'not studied' }];
+    const DEFAULT_CONCEPTS = [
+        'Arrays & Hashing',
+        'Two Pointers',
+        'Sliding Window',
+        'Stack',
+        'Binary Search',
+        'Linked List',
+        'Trees',
+        'Tries',
+        'Heap / Priority Queue',
+        'Backtracking',
+        'Graphs',
+        'Advanced Graphs',
+        '1-D Dynamic Programming',
+        '2-D Dynamic Programming',
+        'Greedy',
+        'Intervals',
+        'Math & Geometry',
+        'Bit Manipulation'
+    ].map((name) => ({ name, level: 'not studied' }));
+    let aiAutosaveTimer = null;
+    let modelRefreshGeneration = 0;
 
     function clampInt(value, min, max, fallback) {
         const parsed = parseInt(value, 10);
@@ -128,8 +154,9 @@ document.addEventListener('DOMContentLoaded', function() {
         saveNotesAndTimerInput.checked = items.saveNotesAndTimer !== undefined ? items.saveNotesAndTimer : true;
         if (items.aiEndpoint) aiEndpointInput.value = items.aiEndpoint;
         if (items.aiApiKey) aiApiKeyInput.value = items.aiApiKey;
-        if (items.aiModel) aiModelInput.value = items.aiModel;
+        if (items.aiModel) setModelOptions([items.aiModel], items.aiModel);
         aiEnabledInput.checked = items.aiEnabled !== undefined ? items.aiEnabled : false;
+        solveTimerEnabledInput.checked = items.solveTimerEnabled !== false;
         nudgeAtMinutesInput.value = clampInt(items.nudgeAtMinutes, 1, 180, 15);
         deadlineAtMinutesInput.value = clampInt(items.deadlineAtMinutes, 2, 360, 45);
         minHelpMinutesInput.value = clampInt(items.minHelpMinutes, 0, 180, 5);
@@ -138,6 +165,218 @@ document.addEventListener('DOMContentLoaded', function() {
         ensureSeedConcepts();
         autoImportFromGitHubInput.checked = items.autoImportFromGitHub === true;
     });
+
+    function setModelOptions(models, selectedModel) {
+        const uniqueModels = [...new Set(models.filter(Boolean))];
+        aiModelInput.replaceChildren(new Option('Select a model', ''));
+        uniqueModels.forEach((model) => {
+            aiModelInput.add(new Option(model, model));
+        });
+        if (selectedModel && !uniqueModels.includes(selectedModel)) {
+            aiModelInput.add(new Option(`${selectedModel} (saved)`, selectedModel));
+        }
+        aiModelInput.value = selectedModel || '';
+    }
+
+    function getModelsEndpoint(endpoint) {
+        const url = new URL(endpoint);
+        const path = url.pathname.replace(/\/+$/, '');
+        url.pathname = /\/chat\/completions$/i.test(path)
+            ? path.replace(/\/chat\/completions$/i, '/models')
+            : `${path}/models`;
+        url.search = '';
+        url.hash = '';
+        return url.href;
+    }
+
+    function isGeminiEndpoint(endpoint) {
+        return new URL(endpoint).hostname === 'generativelanguage.googleapis.com';
+    }
+
+    function safeEndpointForLogging(endpoint) {
+        try {
+            const url = new URL(endpoint);
+            return `${url.origin}${url.pathname}`;
+        } catch (error) {
+            return '(invalid endpoint URL)';
+        }
+    }
+
+    async function readProviderError(response) {
+        try {
+            const readableResponse = typeof response.clone === 'function' ? response.clone() : response;
+            const payload = await readableResponse.json();
+            return payload && payload.error && payload.error.message
+                ? payload.error.message
+                : (payload && payload.message) || '';
+        } catch (error) {
+            return '';
+        }
+    }
+
+    async function refreshAiModels() {
+        const generation = ++modelRefreshGeneration;
+        const selectedModel = aiModelInput.value;
+        const endpoint = aiEndpointInput.value.trim() || DEFAULT_AI_ENDPOINT;
+        const apiKey = aiApiKeyInput.value.trim();
+
+        if (!apiKey) {
+            aiModelStatus.textContent = 'Enter an API key to load available models.';
+            refreshAiModelsButton.disabled = false;
+            return;
+        }
+
+        let modelsUrl;
+        let originPattern;
+        let isGemini;
+        try {
+            modelsUrl = getModelsEndpoint(endpoint);
+            originPattern = originPatternForEndpoint(modelsUrl);
+            if (!originPattern) throw new Error('Invalid API endpoint.');
+            isGemini = isGeminiEndpoint(endpoint);
+        } catch (error) {
+            aiModelStatus.textContent = `Could not load models: ${error.message}`;
+            refreshAiModelsButton.disabled = false;
+            return;
+        }
+
+        aiModelStatus.textContent = 'Refreshing models…';
+        refreshAiModelsButton.disabled = true;
+        let authMethod = isGemini ? 'X-goog-api-key header' : 'Bearer authorization';
+        let requestStatus = null;
+        try {
+            const hasPermission = await new Promise((resolve) => {
+                chrome.permissions.contains({ origins: [originPattern] }, resolve);
+            });
+            if (!hasPermission) {
+                const granted = await new Promise((resolve) => {
+                    chrome.permissions.request({ origins: [originPattern] }, resolve);
+                });
+                if (!granted) throw new Error('Permission to access the model endpoint was denied.');
+            }
+
+            const response = await fetch(modelsUrl, {
+                headers: isGemini
+                    ? {
+                        'Content-Type': 'application/json',
+                        'X-goog-api-key': apiKey
+                    }
+                    : { Authorization: `Bearer ${apiKey}` }
+            });
+            requestStatus = response.status;
+            if (!response.ok) {
+                const detail = await readProviderError(response);
+                throw new Error(`Model request failed (${response.status})${detail ? `: ${detail}` : '.'}`);
+            }
+            const payload = await response.json();
+            const models = isGemini
+                ? (Array.isArray(payload.models) ? payload.models
+                    .filter((model) => model && typeof model.name === 'string' &&
+                        (/^models\/gemini-/i.test(model.name) ||
+                            (Array.isArray(model.supportedGenerationMethods) &&
+                                model.supportedGenerationMethods.includes('interactions'))))
+                    .map((model) => model.name && model.name.replace(/^models\//, ''))
+                    .filter(Boolean) : [])
+                : (Array.isArray(payload.data)
+                    ? payload.data.map((model) => model && model.id).filter(Boolean)
+                    : []);
+            if (!models.length) throw new Error('The endpoint returned no models.');
+            if (generation !== modelRefreshGeneration) return;
+
+            setModelOptions(models, selectedModel);
+            aiModelStatus.textContent = `${models.length} model${models.length === 1 ? '' : 's'} available.`;
+        } catch (error) {
+            if (generation === modelRefreshGeneration) {
+                console.error('[YeetCode] AI model refresh failed', {
+                    endpoint: safeEndpointForLogging(endpoint),
+                    method: 'GET',
+                    authMethod,
+                    status: requestStatus,
+                    error: error.message
+                });
+                aiModelStatus.textContent = `Could not load models: ${error.message}`;
+            }
+        } finally {
+            if (generation === modelRefreshGeneration) {
+                refreshAiModelsButton.disabled = false;
+            }
+        }
+    }
+
+    function getAiSettingsToSave() {
+        const nudgeAtMinutes = clampInt(nudgeAtMinutesInput.value, 1, 180, 15);
+        const deadlineAtMinutes = clampInt(deadlineAtMinutesInput.value, 2, 360, 45);
+        return {
+            aiEnabled: aiEnabledInput.checked,
+            aiEndpoint: aiEndpointInput.value.trim() || DEFAULT_AI_ENDPOINT,
+            aiApiKey: aiApiKeyInput.value.trim(),
+            aiModel: aiModelInput.value.trim(),
+            solveTimerEnabled: solveTimerEnabledInput.checked,
+            nudgeAtMinutes,
+            deadlineAtMinutes: Math.max(deadlineAtMinutes, Math.min(360, nudgeAtMinutes + 1)),
+            minHelpMinutes: clampInt(minHelpMinutesInput.value, 0, 180, 5),
+            concepts: collectConcepts()
+        };
+    }
+
+    function flushAiAutosave() {
+        if (aiAutosaveTimer) {
+            clearTimeout(aiAutosaveTimer);
+            aiAutosaveTimer = null;
+        }
+        chrome.storage.sync.set(getAiSettingsToSave(), function() {
+            if (chrome.runtime.lastError) {
+                aiAutoSaveStatus.textContent = `Auto-save failed: ${chrome.runtime.lastError.message}`;
+                return;
+            }
+            aiAutoSaveStatus.textContent = 'AI settings saved automatically.';
+        });
+    }
+
+    function scheduleAiAutosave() {
+        aiAutoSaveStatus.textContent = 'Saving AI settings…';
+        if (aiAutosaveTimer) clearTimeout(aiAutosaveTimer);
+        aiAutosaveTimer = setTimeout(flushAiAutosave, 800);
+    }
+
+    function persistAiDraftOnExit() {
+        if (aiAutosaveTimer) flushAiAutosave();
+    }
+
+    [...AI_SETTINGS_KEYS.map((key) => document.getElementById(key)), conceptsList].forEach((element) => {
+        if (!element) return;
+        element.addEventListener('input', scheduleAiAutosave);
+        element.addEventListener('change', scheduleAiAutosave);
+    });
+    aiEnabledInput.addEventListener('change', function() {
+        if (!aiEnabledInput.checked) {
+            scheduleAiAutosave();
+            return;
+        }
+
+        const originPattern = originPatternForEndpoint(aiEndpointInput.value.trim() || DEFAULT_AI_ENDPOINT);
+        if (!originPattern) {
+            aiEnabledInput.checked = false;
+            aiAutoSaveStatus.textContent = 'AI settings not saved: enter a valid endpoint first.';
+            return;
+        }
+        chrome.permissions.request({ origins: [originPattern] }, function(granted) {
+            if (chrome.runtime.lastError || !granted) {
+                aiEnabledInput.checked = false;
+                aiAutoSaveStatus.textContent = 'AI Helper needs endpoint permission to be enabled.';
+            }
+            scheduleAiAutosave();
+        });
+    });
+    conceptsList.addEventListener('click', (event) => {
+        if (event.target.closest('.concept-remove')) scheduleAiAutosave();
+    });
+    addConceptButton.addEventListener('click', scheduleAiAutosave);
+    aiModelInput.addEventListener('focus', refreshAiModels);
+    aiModelInput.addEventListener('pointerdown', refreshAiModels);
+    refreshAiModelsButton.addEventListener('click', refreshAiModels);
+    window.addEventListener('pagehide', persistAiDraftOnExit);
+    window.addEventListener('blur', persistAiDraftOnExit);
 
     // Toggle token password visibility
     toggleToken.addEventListener('change', function() {
@@ -235,6 +474,7 @@ document.addEventListener('DOMContentLoaded', function() {
             aiEndpoint: aiEndpointInput.value.trim() || DEFAULT_AI_ENDPOINT,
             aiApiKey: aiApiKey,
             aiModel: aiModel,
+            solveTimerEnabled: solveTimerEnabledInput.checked,
             nudgeAtMinutes: clampInt(nudgeAtMinutesInput.value, 1, 180, 15),
             deadlineAtMinutes: clampInt(deadlineAtMinutesInput.value, 2, 360, 45),
             minHelpMinutes: clampInt(minHelpMinutesInput.value, 0, 180, 5),

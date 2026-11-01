@@ -20,6 +20,7 @@ global.chrome = {
           aiEndpoint: 'https://ai.example.com/v1/chat/completions',
           aiApiKey: 'sk_savedkey',
           aiModel: 'saved-model',
+          solveTimerEnabled: true,
           nudgeAtMinutes: 15,
           deadlineAtMinutes: 45,
           minHelpMinutes: 5,
@@ -45,9 +46,11 @@ global.chrome = {
     })
   },
   permissions: {
-    request: jest.fn((perms, callback) => callback(true))
+    request: jest.fn((perms, callback) => callback(true)),
+    contains: jest.fn((perms, callback) => callback(true))
   }
 };
+global.fetch = jest.fn();
 
 // Require the options script once
 require('../options.js');
@@ -68,10 +71,14 @@ describe('Options Page', () => {
       <button id="test">Test Connection</button>
       <button id="save">Save Settings</button>
       <div id="status"></div>
+      <div id="aiAutoSaveStatus"></div>
       <input type="checkbox" id="aiEnabled">
       <input type="text" id="aiEndpoint">
       <input type="password" id="aiApiKey">
-      <input type="text" id="aiModel">
+      <select id="aiModel"><option value="">Select a model</option></select>
+      <button id="refreshAiModels" type="button">Refresh</button>
+      <div id="aiModelStatus"></div>
+      <input type="checkbox" id="solveTimerEnabled">
       <input type="number" id="nudgeAtMinutes">
       <input type="number" id="deadlineAtMinutes">
       <input type="number" id="minHelpMinutes">
@@ -97,6 +104,7 @@ describe('Options Page', () => {
       'aiEndpoint',
       'aiApiKey',
       'aiModel',
+      'solveTimerEnabled',
       'nudgeAtMinutes',
       'deadlineAtMinutes',
       'minHelpMinutes',
@@ -113,6 +121,7 @@ describe('Options Page', () => {
     expect(document.getElementById('aiEndpoint').value).toBe('https://ai.example.com/v1/chat/completions');
     expect(document.getElementById('aiApiKey').value).toBe('sk_savedkey');
     expect(document.getElementById('aiModel').value).toBe('saved-model');
+    expect(document.getElementById('solveTimerEnabled').checked).toBe(true);
     expect(document.getElementById('nudgeAtMinutes').value).toBe('15');
     expect(document.getElementById('deadlineAtMinutes').value).toBe('45');
     expect(document.getElementById('minHelpMinutes').value).toBe('5');
@@ -137,8 +146,11 @@ describe('Options Page', () => {
     expect(document.getElementById('minHelpMinutes').value).toBe('5');
 
     const conceptRows = document.querySelectorAll('#conceptsList .concept-row');
-    expect(conceptRows.length).toBeGreaterThanOrEqual(1);
+    expect(conceptRows.length).toBe(18);
+    expect(conceptRows[0].querySelector('.concept-name').value).toBe('Arrays & Hashing');
+    expect(conceptRows[1].querySelector('.concept-name').value).toBe('Two Pointers');
     expect(conceptRows[0].querySelector('.concept-level').value).toBe('not studied');
+    expect(document.getElementById('solveTimerEnabled').checked).toBe(true);
   });
 
   test('should default saveNotesAndTimer to false when stored that way', () => {
@@ -149,6 +161,119 @@ describe('Options Page', () => {
 
     expect(document.getElementById('saveNotesAndTimer').checked).toBe(false);
     expect(document.getElementById('autoImportFromGitHub').checked).toBe(false);
+  });
+
+  test('should refresh models whenever the model dropdown is focused', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: [{ id: 'model-a' }, { id: 'model-b' }] })
+    });
+
+    document.getElementById('aiModel').dispatchEvent(new Event('focus'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://ai.example.com/v1/models',
+      expect.objectContaining({ headers: { Authorization: 'Bearer sk_savedkey' } })
+    );
+    expect([...document.getElementById('aiModel').options].map((option) => option.value)).toEqual([
+      '',
+      'model-a',
+      'model-b',
+      'saved-model'
+    ]);
+  });
+
+  test('should load Gemini models using Google API key auth and filter non-generation models', async () => {
+    document.getElementById('aiEndpoint').value = 'https://generativelanguage.googleapis.com/v1beta/';
+    document.getElementById('aiApiKey').value = 'google-api-key';
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        models: [
+          { name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] },
+          { name: 'models/text-embedding-004', supportedGenerationMethods: ['embedContent'] }
+        ]
+      })
+    });
+
+    document.getElementById('aiModel').dispatchEvent(new Event('focus'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://generativelanguage.googleapis.com/v1beta/models',
+      expect.objectContaining({
+        headers: {
+          'Content-Type': 'application/json',
+          'X-goog-api-key': 'google-api-key'
+        }
+      })
+    );
+    expect([...document.getElementById('aiModel').options].map((option) => option.value)).toEqual([
+      '',
+      'gemini-2.5-flash',
+      'saved-model'
+    ]);
+  });
+
+  test('should show the provider error returned when Gemini model loading fails', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    global.fetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        error: { message: 'API key not valid. Please pass a valid API key.' }
+      })
+    });
+
+    document.getElementById('aiModel').dispatchEvent(new Event('focus'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(document.getElementById('aiModelStatus').textContent).toContain(
+      'Model request failed (400): API key not valid.'
+    );
+    expect(consoleError).toHaveBeenCalledWith(
+      '[YeetCode] AI model refresh failed',
+      expect.objectContaining({
+        endpoint: 'https://ai.example.com/v1/chat/completions',
+        method: 'GET',
+        authMethod: 'Bearer authorization',
+        status: 400,
+        error: 'Model request failed (400): API key not valid. Please pass a valid API key.'
+      })
+    );
+    consoleError.mockRestore();
+  });
+
+  test('should save AI setting drafts immediately when the popup loses focus', () => {
+    const apiKeyInput = document.getElementById('aiApiKey');
+    const endpointInput = document.getElementById('aiEndpoint');
+    apiKeyInput.value = 'sk_pasted-key';
+    endpointInput.value = 'https://api.example.com/v1/chat/completions';
+    apiKeyInput.dispatchEvent(new Event('input'));
+    endpointInput.dispatchEvent(new Event('input'));
+
+    window.dispatchEvent(new Event('blur'));
+
+    const savedSettings = chrome.storage.sync.set.mock.calls[0][0];
+    expect(savedSettings.aiApiKey).toBe('sk_pasted-key');
+    expect(savedSettings.aiEndpoint).toBe('https://api.example.com/v1/chat/completions');
+    expect(savedSettings).not.toHaveProperty('githubToken');
+  });
+
+  test('should enable the solve timer independently of AI Helper', () => {
+    document.getElementById('githubToken').value = 'ghp_token';
+    document.getElementById('githubRepo').value = 'owner/repo';
+    document.getElementById('aiEnabled').checked = false;
+    document.getElementById('solveTimerEnabled').checked = true;
+    document.getElementById('save').dispatchEvent(new Event('click'));
+
+    const savedSettings = chrome.storage.sync.set.mock.calls[0][0];
+    expect(savedSettings.aiEnabled).toBe(false);
+    expect(savedSettings.solveTimerEnabled).toBe(true);
   });
 
   // ─────────────────────────────────────────────────────
@@ -203,6 +328,7 @@ describe('Options Page', () => {
     notesToggle.checked = false;
     document.getElementById('aiEnabled').checked = false;
     document.getElementById('aiEndpoint').value = 'https://api.mycorp.ai/v1/chat/completions';
+    document.getElementById('aiModel').add(new Option('my-model', 'my-model'));
     document.getElementById('aiModel').value = 'my-model';
     document.getElementById('nudgeAtMinutes').value = '10';
     document.getElementById('deadlineAtMinutes').value = '60';
@@ -226,6 +352,7 @@ describe('Options Page', () => {
       aiEndpoint: 'https://api.mycorp.ai/v1/chat/completions',
       aiApiKey: 'sk_savedkey',
       aiModel: 'my-model',
+      solveTimerEnabled: true,
       nudgeAtMinutes: 10,
       deadlineAtMinutes: 60,
       minHelpMinutes: 0,

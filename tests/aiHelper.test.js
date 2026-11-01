@@ -143,6 +143,56 @@ describe('AI Helper (background)', () => {
       });
     });
 
+    test('should send Gemini requests using the Interactions API format', (done) => {
+      chrome.storage.sync.get.mockImplementationOnce((keys, callback) => {
+        callback({
+          aiEnabled: true,
+          aiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/',
+          aiApiKey: 'google-api-key',
+          aiModel: 'gemini-2.5-flash',
+          concepts: []
+        });
+      });
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          outputs: [{ type: 'text', text: 'Which constraint matters?' }]
+        })
+      });
+
+      chrome.runtime.sendMessage({
+        action: 'aiChat',
+        mode: 'ask',
+        problemTitle: 'two sum',
+        userMessage: 'What should I consider?'
+      }, (response) => {
+        try {
+          expect(response.success).toBe(true);
+          expect(response.result.reply).toBe('Which constraint matters?');
+          expect(fetch).toHaveBeenCalledWith(
+            'https://generativelanguage.googleapis.com/v1beta/interactions',
+            expect.objectContaining({
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-goog-api-key': 'google-api-key',
+                'Api-Revision': '2026-05-20'
+              }
+            })
+          );
+          const body = JSON.parse(fetch.mock.calls[0][1].body);
+          expect(body.model).toBe('gemini-2.5-flash');
+          expect(body.input).toContain('SYSTEM INSTRUCTIONS:\n');
+          expect(body.input).toContain('TEACH, never to solve');
+          expect(body.input).toContain('USER:\nWhat should I consider?');
+          done();
+        } catch (error) {
+          done(error);
+        }
+      });
+    });
+
     test('should fail when AI Helper is disabled', (done) => {
       chrome.storage.sync.get.mockImplementationOnce((keys, callback) => {
         callback({ aiEnabled: false, aiApiKey: 'sk-test' });

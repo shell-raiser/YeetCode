@@ -184,6 +184,47 @@ describe('YeetCode Extension', () => {
   // Content script DOM integration helpers
   // ─────────────────────────────────────────────────────
   describe('content script DOM integration', () => {
+    test('should inject the AI Chat tab into LeetCode native tab bar when AI is enabled', () => {
+      document.body.innerHTML = `
+        <div id="description_tabbar_outer">
+          <div class="flexlayout__tabset_tabbar_inner flexlayout__tabset_tabbar_inner_top">
+            <div class="flexlayout__tabset_tabbar_inner_tab_container flexlayout__tabset_tabbar_inner_tab_container_top"></div>
+          </div>
+        </div>
+      `;
+      window.history.replaceState({}, '', '/problems/two-sum/');
+      chrome.storage.sync.get.mockImplementationOnce((keys, callback) => {
+        callback({
+          aiEnabled: true,
+          solveTimerEnabled: false,
+          nudgeAtMinutes: 15,
+          deadlineAtMinutes: 45,
+          minHelpMinutes: 5
+        });
+      });
+
+      window.LeetCodeCodeSaver.aiHelper.reloadAiSessionSettings(true);
+
+      const aiTab = document.getElementById('yc-ai-button');
+      expect(aiTab).not.toBeNull();
+      expect(aiTab.parentElement).toBe(document.querySelector(
+        '#description_tabbar_outer .flexlayout__tabset_tabbar_inner_tab_container_top'
+      ));
+      expect(aiTab.textContent).toBe('AI Chat');
+      expect(document.getElementById('yc-ai-tab-divider')).not.toBeNull();
+
+      aiTab.remove();
+      document.getElementById('yc-ai-tab-divider').remove();
+      window.LeetCodeCodeSaver.aiHelper.state.settings.aiEnabled = false;
+      window.LeetCodeCodeSaver.aiHelper.state.settingsLoaded = true;
+      window.history.replaceState({}, '', '/');
+      document.body.innerHTML = `
+        <div id="editor-container"></div>
+        <button data-testid="judge-button">Submit</button>
+        <textarea style="display:none;">console.log('test');</textarea>
+      `;
+    });
+
     test('should attach the manual save button during startup scan', () => {
       document.body.innerHTML = `
         <div id="editor-container"></div>
@@ -210,14 +251,47 @@ describe('YeetCode Extension', () => {
       expect(window.LeetCodeCodeSaver.checkSubmissionSuccess()).toBe(true);
     });
 
-    test('should scrape notes from textareas and timer values from timer elements', () => {
+    test('should return the shared extension timer value when timer tracking is enabled', () => {
       document.body.innerHTML = `
         <textarea placeholder="Write a note">Use prefix sums.</textarea>
         <span class="session-timer">01:23:45</span>
       `;
+      const aiState = window.LeetCodeCodeSaver.aiHelper.state;
+      aiState.settingsLoaded = true;
+      aiState.settings.solveTimerEnabled = true;
+      aiState.sessionStartMs = Date.now() - 83 * 60 * 1000 - 45 * 1000;
+      aiState.currentSlug = 'two-sum';
 
       expect(window.LeetCodeCodeSaver.getNotesValue()).toBe('Use prefix sums.');
       expect(window.LeetCodeCodeSaver.getTimerValue()).toBe('01:23:45');
+    });
+
+    test('should replace LeetCode timer display and restore it when the extension timer is disabled', () => {
+      document.body.innerHTML = `
+        <div id="leetcode-toolbar">
+          <div class="timer-control-wrapper">
+            <div class="timer-button" role="button" aria-label="Timer">LeetCode timer</div>
+          </div>
+        </div>
+      `;
+      const aiState = window.LeetCodeCodeSaver.aiHelper.state;
+      aiState.settingsLoaded = true;
+      aiState.settings.solveTimerEnabled = true;
+      aiState.sessionStartMs = Date.now() - 83 * 60 * 1000 - 45 * 1000;
+
+      window.LeetCodeCodeSaver.syncSolveTimerDisplay();
+
+      const nativeTimerContainer = document.querySelector('.timer-control-wrapper');
+      expect(nativeTimerContainer.style.display).toBe('none');
+      expect(document.getElementById('yc-solve-timer').textContent).toBe('01:23:45');
+      expect(document.getElementById('yc-solve-timer').parentElement).toBe(nativeTimerContainer.parentElement);
+
+      aiState.settings.solveTimerEnabled = false;
+      aiState.sessionStartMs = null;
+      window.LeetCodeCodeSaver.syncSolveTimerDisplay();
+
+      expect(document.getElementById('yc-solve-timer')).toBeNull();
+      expect(nativeTimerContainer.style.display).toBe('');
     });
 
     test('should scrape notes from rich text note editors', () => {
@@ -270,6 +344,10 @@ describe('YeetCode Extension', () => {
 
     test('should return null when notes and timer are unavailable', () => {
       document.body.innerHTML = '<main><p>No notes here</p></main>';
+      const aiState = window.LeetCodeCodeSaver.aiHelper.state;
+      aiState.settingsLoaded = true;
+      aiState.settings.solveTimerEnabled = false;
+      aiState.sessionStartMs = null;
 
       expect(window.LeetCodeCodeSaver.getNotesValue()).toBeNull();
       expect(window.LeetCodeCodeSaver.getTimerValue()).toBeNull();
